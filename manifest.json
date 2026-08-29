@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "简历助手V1.1",
-  "version": "2.1.0",
+  "version": "1.1.0",
   "description": "在 BOSS直聘、智联招聘、前程无忧、拉勾、猎聘、实习僧等招聘网站上自动填写简历内容，支持自定义简历数据和智能字段识别。",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus", "windows"],
   "host_permissions": ["<all_urls>"],
