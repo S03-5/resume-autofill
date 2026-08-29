@@ -22,6 +22,12 @@ A Manifest V3 browser extension for Chrome / Edge that auto-fills online resume 
 - **智能识别兜底**：即使站点未单独适配，也会根据输入框的 placeholder、标签、name 等自动识别。
 - **数据本地存储**：所有简历数据仅保存在本机浏览器（chrome.storage.local），不会上传到任何服务器。
 
+- **One-click fill** — open a job site's resume page and click "Fill Current Page"; dozens of fields are auto-filled with green highlights.
+- **Resume recognition** — paste your full resume, or import Word / PDF / txt files; name, phone, education, experience and more are auto-detected and filled.
+- **Custom fields** — add site-specific fields ("field name + content") yourself; they match and fill automatically.
+- **Smart fallback matching** — even without a site adapter, inputs are matched by placeholder, label, or `name` attributes.
+- **Local-only storage** — all resume data stays in your browser (`chrome.storage.local`); nothing is uploaded.
+
 ## 安装 / Installation
 
 1. 下载或克隆本仓库。
@@ -58,18 +64,28 @@ A Manifest V3 browser extension for Chrome / Edge that auto-fills online resume 
 2. 打开招聘网站的简历编辑页或投递页。
 3. 点击「⚡ 立即填写当前页面」，或使用页面右键菜单「用简历数据填写本页表单」。
 
+1. Click the 📋 icon and enter your resume: paste the full text, import a Word / PDF / txt file to auto-recognize, or fill in manually (changes are saved automatically).
+2. Open the resume editing or application page on a job site.
+3. Click **⚡ Fill Current Page**, or use the page's right-click menu "Fill form with resume data".
+
 ## 自定义字段 / Custom Fields
 
 在弹窗最下方「自定义字段」分组中添加“字段名 + 内容”，之后在任意网站遇到该字段名时会自动匹配填写。
+
+Add "field name + content" under the Custom Fields group at the bottom of the popup; fields matching those names will be auto-filled on any site.
 
 ## 隐私说明 / Privacy
 
 插件不收集、不上传任何数据。所有简历信息均保存在本机浏览器的 `chrome.storage.local` 中。
 
+The extension collects and uploads nothing. All resume information is stored locally in your browser's `chrome.storage.local`.
+
 ## 为网站做适配 / Add a New Site
 
 在 `content/sites.js` 的 `SITE_ADAPTERS` 中添加站点域名与字段选择器即可。也欢迎通过 Issue 反馈网站改版导致的适配问题。
 
+Add the site domain and field selectors to `SITE_ADAPTERS` in `content/sites.js`. Issues are welcome for reporting adapter problems caused by site updates.
+
 ## 许可证 / License
 
-[MIT License](LICENSE)
+本项目使用 MIT 许可证开源。This project is open-sourced under the [MIT License](LICENSE).
