@@ -4,6 +4,16 @@
 
 A Manifest V3 browser extension for Chrome / Edge that auto-fills online resume / application forms on Chinese job boards (BOSS直聘, 智联招聘, 前程无忧, 拉勾, 猎聘, 实习僧, 快手校招, and more).
 
+## 截图 / Screenshots
+
+![弹窗界面](docs/popup.png)
+
+![填写效果](docs/fill-result.png)
+
+## 演示动图 / Demo
+
+![自动填写演示](docs/demo.gif)
+
 ## 功能特性 / Features
 
 - **一键填写**：打开招聘网站简历页，点击「立即填写当前页面」，几十个字段自动填好，绿色高亮提示结果。
@@ -19,6 +29,28 @@ A Manifest V3 browser extension for Chrome / Edge that auto-fills online resume 
 3. 打开右上角「开发人员模式 / Developer mode」。
 4. 点击「加载已解压的扩展程序 / Load unpacked」，选择本仓库文件夹。
 5. 工具栏出现 📋 图标即可使用。
+
+## English Installation Guide
+
+1. Download or clone this repository.
+2. Open the extensions page in your browser:
+   - Edge: `edge://extensions/`
+   - Chrome: `chrome://extensions/`
+3. Enable **Developer mode** (toggle in the top-right corner).
+4. Click **Load unpacked** and select the repository folder.
+5. The 📋 icon will appear in the toolbar; you can pin it if you like.
+
+### How to Use
+
+1. Click the 📋 icon to open the popup.
+2. Enter your resume: paste your resume text, or import a Word / PDF / txt file to auto-fill, or fill in the fields manually — changes are saved automatically.
+3. Open a job site's resume / application page, then click **⚡ Fill Current Page** (or right-click the page and choose "Fill form with resume data").
+4. Filled fields are highlighted in green.
+
+### Notes
+
+- All data is stored locally in your browser (`chrome.storage.local`). Nothing is uploaded.
+- Some sites use custom dropdowns, date pickers, or file uploads that require manual input.
 
 ## 使用 / Usage
 
