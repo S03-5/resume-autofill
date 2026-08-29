@@ -1,0 +1,43 @@
+# 简历助手 / Resume Autofill Assistant
+
+一个 Chrome / Edge 浏览器扩展（Manifest V3）：一键自动填写 BOSS直聘、智联招聘、前程无忧、拉勾、猎聘、实习僧、快手校招等招聘网站上的在线简历表单。
+
+A Manifest V3 browser extension for Chrome / Edge that auto-fills online resume / application forms on Chinese job boards (BOSS直聘, 智联招聘, 前程无忧, 拉勾, 猎聘, 实习僧, 快手校招, and more).
+
+## 功能特性 / Features
+
+- **一键填写**：打开招聘网站简历页，点击「立即填写当前页面」，几十个字段自动填好，绿色高亮提示结果。
+- **简历识别**：粘贴简历全文，或导入 Word / PDF / txt 文件，自动识别姓名、电话、学历、经历等字段并填入。
+- **自定义字段**：遇到网站特有的新字段，可自行添加“字段名 + 内容”，填写时自动匹配。
+- **智能识别兜底**：即使站点未单独适配，也会根据输入框的 placeholder、标签、name 等自动识别。
+- **数据本地存储**：所有简历数据仅保存在本机浏览器（chrome.storage.local），不会上传到任何服务器。
+
+## 安装 / Installation
+
+1. 下载或克隆本仓库。
+2. 打开浏览器扩展管理页：Edge → `edge://extensions/`；Chrome → `chrome://extensions/`。
+3. 打开右上角「开发人员模式 / Developer mode」。
+4. 点击「加载已解压的扩展程序 / Load unpacked」，选择本仓库文件夹。
+5. 工具栏出现 📋 图标即可使用。
+
+## 使用 / Usage
+
+1. 点击 📋 图标，录入简历：粘贴简历全文 / 导入 Word、PDF、txt 自动识别，或手动填写（改动自动保存）。
+2. 打开招聘网站的简历编辑页或投递页。
+3. 点击「⚡ 立即填写当前页面」，或使用页面右键菜单「用简历数据填写本页表单」。
+
+## 自定义字段 / Custom Fields
+
+在弹窗最下方「自定义字段」分组中添加“字段名 + 内容”，之后在任意网站遇到该字段名时会自动匹配填写。
+
+## 隐私说明 / Privacy
+
+插件不收集、不上传任何数据。所有简历信息均保存在本机浏览器的 `chrome.storage.local` 中。
+
+## 为网站做适配 / Add a New Site
+
+在 `content/sites.js` 的 `SITE_ADAPTERS` 中添加站点域名与字段选择器即可。也欢迎通过 Issue 反馈网站改版导致的适配问题。
+
+## 许可证 / License
+
+[MIT License](LICENSE)

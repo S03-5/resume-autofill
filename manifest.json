@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "简历助手V1.1",
+  "version": "2.1.0",
+  "description": "在 BOSS直聘、智联招聘、前程无忧、拉勾、猎聘、实习僧等招聘网站上自动填写简历内容，支持自定义简历数据和智能字段识别。",
+  "permissions": ["storage", "activeTab", "scripting", "contextMenus", "windows"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/sites.js", "content/content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "commands": {
+    "fill-current-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F"
+      },
+      "description": "用简历数据填写当前页面的表单"
+    }
+  }
+}

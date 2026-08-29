@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Moka 结构匹配测试</title>
+</head>
+<body>
+  <h3>模拟追觅(Moka)表单结构：label 与 input 分属不同层级</h3>
+  <div class="ant-form-item">
+    <div class="ant-form-item-label"><label>姓名</label></div>
+    <div class="ant-form-item-control"><input placeholder="请输入"></div>
+  </div>
+  <div class="ant-form-item">
+    <div class="ant-form-item-label"><label>手机号码</label></div>
+    <div class="ant-form-item-control"><span>+86</span><input placeholder="请输入11位手机号"></div>
+  </div>
+  <div class="ant-form-item">
+    <div class="ant-form-item-label"><label>邮箱</label></div>
+    <div class="ant-form-item-control"><input placeholder="请输入"></div>
+  </div>
+  <div class="ant-form-item">
+    <div class="ant-form-item-label"><label>证件号码</label></div>
+    <div class="ant-form-item-control"><input placeholder="请输入"></div>
+  </div>
+  <div class="ant-form-item">
+    <div class="ant-form-item-label"><label>最高学历</label></div>
+    <div class="ant-form-item-control">
+      <select><option value="">请选择</option><option>大专</option><option>本科</option><option>硕士</option></select>
+    </div>
+  </div>
+  <div class="ant-form-item">
+    <div class="ant-form-item-label"><label>性别</label></div>
+    <div class="ant-form-item-control"><input type="radio" name="sex" value="男">男 <input type="radio" name="sex" value="女">女</div>
+  </div>
+  <pre id="out">测试中…</pre>
+  <script>
+    window.chrome = {
+      runtime: { onMessage: { addListener: function (fn) { window.__l = fn; } } },
+      storage: { local: { get: function () { return Promise.resolve({ settings: { autoFill: false } }); }, set: function () {} } }
+    };
+  </script>
+  <script src="../content/sites.js"></script>
+  <script src="../content/content.js"></script>
+  <script>
+    var data = {
+      name: "张三",
+      phone: "13800138000",
+      email: "zhangsan@example.com",
+      id_number: "110101199001011234",
+      degree: "本科",
+      gender: "男"
+    };
+    window.__l({ type: "FILL_PAGE", data: data, mode: "manual" }, null, function (resp) {
+      document.getElementById("out").textContent =
+        "filled=" + resp.filled + " total=" + resp.total + "\n" + JSON.stringify(resp.results, null, 2);
+    });
+  </script>
+</body>
+</html>

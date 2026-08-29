@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>简历助手V1.1</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div class="title">📋 简历助手V1.1</div>
+    <div class="header-btns">
+      <button id="fillBtn" class="primary">⚡ 立即填写当前页面</button>
+      <button id="openWinBtn" class="ghost icon-btn" title="在独立窗口中打开，点击页面外部不会自动关闭">⧉</button>
+      <button id="closeBtn" class="ghost icon-btn" title="关闭">✕</button>
+    </div>
+  </header>
+
+  <div id="status" class="status hidden"></div>
+  <div id="siteHint" class="site-hint">正在检测当前页面…</div>
+
+  <details id="importBox" class="import-box">
+    <summary>📥 简历识别：粘贴简历全文，自动填入（新用户不用逐项填写）</summary>
+    <p class="import-hint">从你的 Word / PDF 简历里复制全文粘贴到下面，或导入 .txt 文件，插件会自动识别并填入空白字段。</p>
+    <textarea id="resumeText" placeholder="在这里粘贴简历全文…"></textarea>
+    <div class="import-actions">
+      <button id="recognizeBtn" class="ghost">🔍 识别简历</button>
+      <button id="importTxtBtn" class="ghost">📄 导入文件（txt/docx/pdf）</button>
+      <input type="file" id="txtFile" accept=".txt,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+    </div>
+    <pre id="recognizeOut" class="recognize-out" hidden></pre>
+    <button id="applyRecognizeBtn" class="ghost" hidden>✓ 应用到简历数据（只填充空白字段）</button>
+  </details>
+
+  <div class="toolbar">
+    <button id="scanBtn" class="secondary">🔍 扫描本页字段</button>
+    <button id="copyScanBtn" class="ghost" hidden>复制结果</button>
+    <span id="scanSummary" class="scan-summary"></span>
+  </div>
+  <textarea id="scanOut" class="scan-out" readonly hidden
+    placeholder="点“扫描本页字段”后，这里会列出页面上的所有可填字段（含标签、placeholder、匹配到的插件字段）。"></textarea>
+
+  <label class="switch-row">
+    <input type="checkbox" id="autoFill">
+    <span>自动填写：进入支持的招聘网站简历页时自动填写</span>
+  </label>
+
+  <main id="form"></main>
+
+  <footer>
+    <button id="importBtn" class="ghost">导入 JSON</button>
+    <button id="exportBtn" class="ghost">导出 JSON</button>
+    <button id="resetBtn" class="ghost danger">恢复默认</button>
+    <input type="file" id="fileInput" accept=".json,application/json" hidden>
+    <span id="saveState" class="save-state">已自动保存</span>
+  </footer>
+
+  <script src="../content/sites.js"></script>
+  <script src="../defaults.js"></script>
+  <script src="fileparse.js"></script>
+  <script src="recognize.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
