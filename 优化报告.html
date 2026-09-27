@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="orYcEOgSkSyYQAhicR4UZC">
+<head data-page-node-id="tyIFoFNS4uW9j9OunG75Sn">
+<meta charset="utf-8" data-page-node-id="Q15DuthGT7dpBPXqkChC36">
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="QSSdc9biW7zmt5LkEr4wCg">
+<title>简历助手 V2.0.0 优化报告</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#ffffff; --line:#e4e7ec; --line2:#eef1f4;
+    --ink:#1b1f24; --ink2:#5b6472; --ink3:#8a94a3;
+    --accent:#1d4ed8; --accent-bg:#eef3ff;
+    --ok:#16a34a; --ok-bg:#edf9f1;
+    --warn:#b45309; --warn-bg:#fff7ea;
+    --danger:#dc2626; --danger-bg:#fef2f2;
+    --new:#7c3aed; --new-bg:#f5f0ff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:0 16px 72px;
+    background:var(--bg); color:var(--ink);
+    font:15px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:920px;margin:0 auto}
+
+  /* 头部 */
+  header{padding:48px 0 28px;border-bottom:1px solid var(--line);margin-bottom:32px}
+  .kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+  h1{margin:10px 0 12px;font-size:32px;line-height:1.3;letter-spacing:-.01em}
+  .lede{font-size:16px;color:var(--ink2);margin:0;max-width:74ch}
+  .meta{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-size:12.5px;padding:4px 11px;border-radius:999px;background:var(--accent-bg);color:var(--accent);font-weight:600}
+  .chip.g{background:var(--ok-bg);color:var(--ok)}
+
+  /* 章节 */
+  section{margin:0 0 44px}
+  h2{
+    font-size:21px;margin:0 0 6px;padding-top:14px;letter-spacing:-.01em;
+    display:flex;align-items:baseline;gap:10px;
+  }
+  h2 .n{
+    font-size:13px;font-weight:700;color:var(--accent);
+    background:var(--accent-bg);border-radius:6px;padding:2px 8px;flex:none;
+  }
+  h2+.sub{color:var(--ink3);font-size:13.5px;margin:0 0 20px}
+  h3{font-size:16px;margin:26px 0 10px;letter-spacing:-.005em}
+  h4{font-size:14px;margin:18px 0 8px;color:var(--ink2)}
+  p{margin:0 0 12px}
+  ul,ol{margin:0 0 12px;padding-left:22px}
+  li{margin:0 0 6px}
+  code{
+    font:13px/1.5 "SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    background:#f0f2f5;border:1px solid var(--line2);border-radius:4px;
+    padding:1px 5px;color:#334155;word-break:break-all;
+  }
+  pre{
+    background:#fff;border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;overflow-x:auto;margin:0 0 14px;
+    font:12.5px/1.7 "SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    color:#334155;
+  }
+  pre code{background:none;border:0;padding:0}
+  strong{font-weight:600}
+  a{color:var(--accent)}
+
+  /* 卡片 */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:0 0 16px}
+  .card h3{margin-top:0}
+  .card>:last-child{margin-bottom:0}
+
+  /* 表格 */
+  table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:13.5px;background:var(--card);
+        border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--line2);vertical-align:top}
+  th{background:#fafbfc;font-weight:600;font-size:12.5px;color:var(--ink2);white-space:nowrap}
+  tr:last-child td{border-bottom:0}
+  td code{font-size:12px}
+
+  /* 标签 */
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:5px;white-space:nowrap}
+  .tag.new{background:var(--new-bg);color:var(--new)}
+  .tag.mod{background:var(--accent-bg);color:var(--accent)}
+  .tag.fix{background:var(--warn-bg);color:var(--warn)}
+
+  /* 提示块 */
+  .note{border-radius:10px;padding:13px 16px;margin:0 0 16px;font-size:13.5px;border:1px solid}
+  .note.info{background:var(--accent-bg);border-color:#d6e2ff;color:#1e3a8a}
+  .note.ok{background:var(--ok-bg);border-color:#d3ecd9;color:#14532d}
+  .note.warn{background:var(--warn-bg);border-color:#f5e0bd;color:#78350f}
+  .note.danger{background:var(--danger-bg);border-color:#f8d7d7;color:#7f1d1d}
+  .note>:last-child{margin-bottom:0}
+  .note b{font-weight:700}
+
+  /* 流程步骤 */
+  .steps{counter-reset:s;list-style:none;padding:0;margin:0 0 16px}
+  .steps li{counter-increment:s;position:relative;padding:0 0 16px 40px;margin:0}
+  .steps li::before{
+    content:counter(s);position:absolute;left:0;top:1px;
+    width:25px;height:25px;border-radius:50%;background:var(--accent);color:#fff;
+    font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  }
+  .steps li::after{content:"";position:absolute;left:12px;top:29px;bottom:2px;width:1px;background:var(--line)}
+  .steps li:last-child{padding-bottom:0}
+  .steps li:last-child::after{display:none}
+  .steps li b{display:block;font-weight:600}
+  .steps li span{color:var(--ink2);font-size:13.5px}
+
+  /* 两列速查 */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+  .kv{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .kv h4{margin:0 0 10px;font-size:13.5px;color:var(--ink)}
+  .kv dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px}
+  .kv dt{color:var(--ink2);white-space:nowrap}
+  .kv dd{margin:0;font-weight:600}
+  .kv dd code{font-weight:400}
+
+  hr{border:0;border-top:1px solid var(--line);margin:36px 0}
+  footer{text-align:center;color:var(--ink3);font-size:12.5px;padding-top:8px}
+</style>
+</head>
+<body data-page-node-id="ksRcHLNginhZBjxA128bKW">
+<div class="wrap" data-page-node-id="YKGWa50hKheN7zSCg3g5To">
+
+<header data-page-node-id="TnnnnGw52irhwiOhqeauTA">
+  <div class="kicker" data-page-node-id="oiaHaBdAh9y93xlBUBXnhU">优化报告 · 2026-09-14</div>
+  <h1 data-page-node-id="Niml7V5TPkLQG004pLJAjm">简历助手 V2.0.0<br data-page-node-id="ZZZ33xL76jYF3HStWNNvsX">五步优化全记录</h1>
+  <p class="lede" data-page-node-id="me8S290umCWqWQCWMfatuD">
+    这次把插件从「一键填表」推到了「一站式秋招工具」：能填组件型表单、能自己学会新网站、
+    能维护多套简历、能自动对岗位、还能把投递这件事记成一笔可追踪的账。
+    下面按 <b data-page-node-id="7SQ9VhnASnw6v8qj5wFeEO">改了什么</b> 和 <b data-page-node-id="Oii9jKQLdkSWJXjAHS6lKr">怎么用</b> 两条线讲清。
+  </p>
+  <div class="meta" data-page-node-id="tTNhr79qQjMn0ReXxHPDqo">
+    <span class="chip" data-page-node-id="KUYcWka13pFK04KRHCwtNn">版本 2.0.0</span>
+    <span class="chip g" data-page-node-id="UxtpzlF9e1GgsyVkecAusf">自动化 183 / 183 全过</span>
+    <span class="chip" data-page-node-id="lHVb224Ln2IqELtrf4YNyR">3 个新模块</span>
+    <span class="chip" data-page-node-id="npagKEbjYMfldUWH2DM1nv">6 个缺陷修复</span>
+  </div>
+</header>
+
+<!-- ========== 1 ========== -->
+<section data-page-node-id="Rk0shScXP80OtTUtxADY4C">
+  <h2 data-page-node-id="Oek7PWHWzEBcK8ovEkNvm9"><span class="n" data-page-node-id="xRy78hD7m2hC0jkjiPKABZ">01</span>五步做了什么</h2>
+  <p class="sub" data-page-node-id="75e2jiQP5dO21NJ4nY6bxy">每一步解决一类真实痛点，不是堆功能。</p>
+
+  <table data-page-node-id="qWGNSOvBThwP0qUSvDwGjb">
+    <thead data-page-node-id="4blWKBtcP1Xm5x1AArXnnk">
+      <tr data-page-node-id="n99Z3OF8oboWG7xWEAS6FL"><th style="width:64px" data-page-node-id="gERvKf0H57HfTFmoTeiWh7">步骤</th><th style="width:190px" data-page-node-id="qNdhWADuw2qvBoX540CrLl">主题</th><th data-page-node-id="rgd1ep7rvE9BoVQvr5xzhE">解决的痛点</th></tr>
+    </thead>
+    <tbody data-page-node-id="N30gPOfDGpmF7152MSVMvy">
+      <tr data-page-node-id="ZW4fOykZ8qgHHfS7wuEwv2">
+        <td data-page-node-id="e1SpWajvozby2wz2Qlzw26"><b data-page-node-id="EHqVRdMWPvXsCYElxlCXKB">第一步</b></td>
+        <td data-page-node-id="8jWfnI3PGDUT2V0EDlfeN3">组件型表单 + 经历块 + 附件</td>
+        <td data-page-node-id="xfY6F9gvbm4GhFphpUQ8pc">校招站点用 antd / Element 渲染「假表单」，原生思路完全失效——下拉打不开、日期点不动、省市区填不到第二级</td>
+      </tr>
+      <tr data-page-node-id="zXAbFMyazuyOLRZBj6TwIo">
+        <td data-page-node-id="rYpTeFhEwGsh5YEVa2WbGt"><b data-page-node-id="qki4qfOqiX8p5aPKlQDcLr">第二步</b></td>
+        <td data-page-node-id="XPRM6iN6tpyWqlDGDeNOHX">悬浮球 + 只填空白框 + 撤销 + 战报</td>
+        <td data-page-node-id="21z4LKn38HTKj3fWtG4eXd">填完不知道填了什么、填错了没法撤回、每次都要抬头点工具栏图标</td>
+      </tr>
+      <tr data-page-node-id="97oI8bDYikLsTGs0tQbEw0">
+        <td data-page-node-id="LKhri2tCrWWOtiFCp2Jhqh"><b data-page-node-id="ELQSN6jUn0Xkd57quAfZUL">第三步</b></td>
+        <td data-page-node-id="8QRJJFgDtXMwHbAGo0Q2El">字段记忆 + 适配器可视化生成</td>
+        <td data-page-node-id="acAqtI3lmzWiHUuxNuGPYJ">插件认不出来的框，以前只能靠改代码——现在你自己点两下就能教会它</td>
+      </tr>
+      <tr data-page-node-id="OnhXPDUPyWdlfoREHG0lOQ">
+        <td data-page-node-id="gIs58bHNOzJec5GHLQqgZT"><b data-page-node-id="G2SnnBuqX8hiSHfz1mfWhw">第四步</b></td>
+        <td data-page-node-id="5AsOWJ6Penftq7Bt37sr2w">多套简历方案 + 期望职位推断</td>
+        <td data-page-node-id="AVKKWkMyQs51DMVB0z1Hiy">一份简历投所有岗位是浪费；投 Java 岗却填着「机械结构工程师」</td>
+      </tr>
+      <tr data-page-node-id="TgYPJmDF4RlHnjv4YbEu4x">
+        <td data-page-node-id="TltPZ8csAWhmhRuJzQED7S"><b data-page-node-id="Chbo4AfEeoZYz8OouwE2p9">第五步</b></td>
+        <td data-page-node-id="FGV6YpAU5Lzrj2xmks3K8p">自动投递台账</td>
+        <td data-page-node-id="Pf8AEd8s4L1G5xiVJWvQsJ">投了几家、投的什么、到哪一步了——全靠脑子记</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========== 2 ========== -->
+<section data-page-node-id="DVVxqfdtFN0QuOul4nc9Ps">
+  <h2 data-page-node-id="uy03231dJIErtfDtqKv8Tc"><span class="n" data-page-node-id="mQXkMOIpOaFEpAPloBeoip">02</span>改动清单</h2>
+  <p class="sub" data-page-node-id="JzSjj93h9CqS3DpaYqpQAv">新增 3 个核心模块、5 个测试页，改了 12 个既有文件。</p>
+
+  <h3 data-page-node-id="REJf0bRP6dYCbxlxvfOxg5">新增文件</h3>
+  <table data-page-node-id="5tuzf6FrgU6EY2XlQVCjKn">
+    <thead data-page-node-id="0aVNFf6dTFBe9jE163l3PB"><tr data-page-node-id="21lD1Eigx86hP709eN69la"><th style="width:230px" data-page-node-id="oLAgLdG0rENQK6sWOG0OYw">文件</th><th style="width:80px" data-page-node-id="GPnwXwHCQpxkYYfxQkvSHS">规模</th><th data-page-node-id="JgCKwBzmLBpw1ecAKWWC8O">作用</th></tr></thead>
+    <tbody data-page-node-id="QSivi1XYuMAbE9hqyE8HWi">
+      <tr data-page-node-id="ZFCeu8grF8fEVzk24N8NTg"><td data-page-node-id="hsIFKe041tWaUocnyeJ9Mb"><code data-page-node-id="eDXU6edsiK5tCZCDyFJFmQ">profiles.js</code></td><td data-page-node-id="ja6JiAOCLyKwYRXm2t3xfN">458 行</td><td data-page-node-id="JstsNgymPFnq9TX1soXn1Y">多套简历方案存储层（字段 / 经历块 / 附件成套切换）</td></tr>
+      <tr data-page-node-id="3WK9rAqXgGDfIYu8CedyCy"><td data-page-node-id="o98ZzaLglBW82E5vYnfdnc"><code data-page-node-id="V4Krl1GzOUGRCgZXqFGX2Z">content/infer.js</code></td><td data-page-node-id="dVXBDofaF9CJ9GvJCOpAOq">408 行</td><td data-page-node-id="4mOwtpuAy5WMLoZ5mKATIs">从岗位页标题推断期望职位 / 城市 / 公司名</td></tr>
+      <tr data-page-node-id="G98tHUYBY71udA2wy2xKzd"><td data-page-node-id="cVLyZACOLeuGjjbO0Y0S5t"><code data-page-node-id="DIxLteH50gbYDqDioRjTAA">content/ledger.js</code></td><td data-page-node-id="FdpWh37AbRfhsrfcVGVQIK">338 行</td><td data-page-node-id="Anei7YvNGAE02vljNi5Qbk">投递台账存储、去重、统计、CSV 导出、成功页判别</td></tr>
+      <tr data-page-node-id="bMlgVRWJ7JpNyV6SFDL8aC"><td data-page-node-id="9PMDqKbklTB3ncEt2hMusD"><code data-page-node-id="aEVdmvyMcRe3QMO35TgFut">test/v5-step5.html</code></td><td data-page-node-id="BMBMlUgqnNoGG1GBG067ar">50 项断言</td><td data-page-node-id="3udY43qT88AzTcDjNhQLuk">第五步验证</td></tr>
+    </tbody>
+  </table>
+
+  <h3 data-page-node-id="5OrqlHAgKF3G6R9SLeyug6">修改文件</h3>
+  <table data-page-node-id="uh5XllxsDDZWoPwK1KekgC">
+    <thead data-page-node-id="1zMUBHR3Tj6DsPk8AJVW8V"><tr data-page-node-id="8n1ktGAEWh3S3Q9EdAlrHH"><th style="width:230px" data-page-node-id="PH7fJQJ2WRYaCB6uvm8KeB">文件</th><th data-page-node-id="7uVocXr9QY1a7huoAOOAGu">关键改动</th></tr></thead>
+    <tbody data-page-node-id="zTFMuMGFuvwF6nRfKOFErQ">
+      <tr data-page-node-id="X8IrEZT1QyVsaAEU6iWnDb"><td data-page-node-id="jBXHp9sDgCC7Dk5HU3Xayq"><code data-page-node-id="ukLhkCuxwROd56hRb610g2">content/content.js</code></td><td data-page-node-id="HbkWbYfNykhk9l0t3tThw6">接入推断（<code data-page-node-id="YCFCWMf5VWBMIEGof1hdU7">applyInferred</code>）、台账入口（悬浮球动作 + 消息通路 + 成功页检测）、两条填写通路统一走 <code data-page-node-id="coxpUF9QFQ6kzHt2kS5HSx">buildFillData()</code></td></tr>
+      <tr data-page-node-id="in47ZXokSnJ4xTrP5EeL2a"><td data-page-node-id="jTZR6cSHC5m8iueUmj0taA"><code data-page-node-id="vZe4kfhEDBUeANb3PDf7LL">content/hud.js</code></td><td data-page-node-id="obFZDUFDMcwnLBEkja3kl9">悬浮球 + 战报浮层 + 点选模式 UI + 投递确认卡（<code data-page-node-id="wmA89XGcGBvY4bZ1lmksf1">showPrompt</code>）；补上 3 个漏声明的变量</td></tr>
+      <tr data-page-node-id="GDR0rFE45B1EN1hOZjJtS6"><td data-page-node-id="B9PcBGF3lB6vH6eMTj7DtV"><code data-page-node-id="1Al99E2AuUWOROQBgyzPCQ">popup/popup.html</code> <code data-page-node-id="YV7ALp1DmwW0XoOBsAfSXn">.css</code> <code data-page-node-id="cbnnWLXtOvCdbTqjEsoXEv">.js</code></td><td data-page-node-id="pFqbAjrQCX6AyX7WJJAnhA">方案条、字段记忆管理区、投递台账区、3 个新开关</td></tr>
+      <tr data-page-node-id="VGXmKY6w4lc15VAV6GOIfK"><td data-page-node-id="GniBgPJ3NudI9E6AGF1VG4"><code data-page-node-id="GyrbCc1HyiBHFt0ZWHVTXj">content/memory.js</code></td><td data-page-node-id="JRFh8EJXuMy6zH7QdeyvOv">字段映射记忆（选择器 + 指纹双保险）</td></tr>
+      <tr data-page-node-id="ipDMf263wWXJRdCSsnRR8n"><td data-page-node-id="0hyP8x8MnFrSDEscbz32pW"><code data-page-node-id="7v0ZsleuPHsEnZGOrXEo0s">content/widgets.js</code> <code data-page-node-id="YnN1yoyZd83YZsuAK58W8K">blocks.js</code> <code data-page-node-id="2ogcQtrxHcGXkWBVSMjlOL">sites.js</code></td><td data-page-node-id="wbkBqFV6UtpvAXBA8xfXPs">组件型控件适配、经历块自动增行、站点适配器与字段分组统一</td></tr>
+      <tr data-page-node-id="oS9eayPkVg5bJKdB67hVI0"><td data-page-node-id="9JNHNuYAEkj5AtwrldYG7g"><code data-page-node-id="3CVIF20oTmEJ4UCpRkqB5N">defaults.js</code></td><td data-page-node-id="ldIXRlnJRnkxyXKs4OiZyj">新增 <code data-page-node-id="36Zy9ZEOBUrb3Iw9ZzUMk8">inferPosition</code>、<code data-page-node-id="41M8vzFEGJXCAsBM1JVqMA">ledgerPrompt</code> 等设置项</td></tr>
+      <tr data-page-node-id="51XRdovgdrsG0LB7k2DwKE"><td data-page-node-id="q6DLuUfPjoJEhC4r4M3PKz"><code data-page-node-id="GEVA08WC0TCmAmsFzbBNtv">background.js</code> <code data-page-node-id="piCsM9hG1VlWpherxHcriD">manifest*.json</code></td><td data-page-node-id="BJSRUbWI3HVV9np8E3RbRW">内容脚本注入顺序 + 新模块接线</td></tr>
+      <tr data-page-node-id="wkHJNVyvCJb5o2UGjtFaqC"><td data-page-node-id="A81Yl8OSt3FiUXgsAPiazF"><code data-page-node-id="SeQgpk7RQIGk8YmEoyGP1P">test/check.js</code> <code data-page-node-id="HS7PHoEAoT2Z28Fk48EGvb">run-page.js</code> <code data-page-node-id="6w7FFY5ZTEIUy7zqWhLomG">serve.js</code></td><td data-page-node-id="NDCJBWrr4kpTFkEds2v4Af">新增 4 类静态校验；报错带出错位置；测试服务器加第五步入口</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note info" data-page-node-id="8qofYjxov9LaA7oLqerfRX">
+    <b data-page-node-id="zn8vJxSibyWsAn45cOI66d">加载顺序（不能乱）：</b><br data-page-node-id="h2fdOdP2vX3Xky5UHMYdki">
+    <code data-page-node-id="sVBSzGeGJ42IpmsnYitY9Z">sites → widgets → blocks → memory → infer → ledger → hud → content</code><br data-page-node-id="dfcS2UcwKzAWvDPxFve3ve">
+    后面的模块依赖前面挂在 <code data-page-node-id="4N4EmzZ0J7iu7xhBDp5q0P">window</code> 上的全局对象。<code data-page-node-id="uuwEnBOXnDAyLaV12zkFqm">test/check.js</code> 现在会强制校验这个顺序，
+    以及 <code data-page-node-id="E4U63kTiGgDOYGHC6gvoWf">background.js</code> 的注入清单和 manifest 是否一致——这两处不一致会导致「部分页面莫名缺模块」。
+  </div>
+</section>
+
+<hr data-page-node-id="EBBZyvnWzI8aCezEWE9E8P">
+
+<!-- ========== 3 ========== -->
+<section data-page-node-id="aiDleaiK7TIrOhauFppWDv">
+  <h2 data-page-node-id="0RWrvkg4qsF4rwGyb8PbN9"><span class="n" data-page-node-id="cNiZXUlLyf8qM7Q5C7Og2O">03</span>五个新功能，怎么用</h2>
+  <p class="sub" data-page-node-id="vPC6f8e06KVCD69GUORGjl">每节先讲「解决什么」，再给可以直接照做的操作。</p>
+
+  <!-- 功能一 -->
+  <div class="card" data-page-node-id="xuoDUWZKrD216apULqdoBr">
+    <h3 data-page-node-id="LjXftcQBfJGH1oJebVFXGe">① 组件型表单能填了</h3>
+    <p data-page-node-id="B8hp7i9wf8dNV0EhBCIozP">
+      校招站点（Moka / 北森 / 牛客 / 各厂自建系统）大多是组件库渲染的：
+      下拉框是个 <code data-page-node-id="ZOV6uuXl4isJzAqibcHyQw">&lt;div&gt;</code>、日期框是 <code data-page-node-id="MQbwAOVMABPwwTEMTU1Xuh">readonly</code> 的、省市区是三列级联。
+      以前插件对这些完全无感，现在分三层处理：
+    </p>
+    <ul data-page-node-id="nyLbFDkxk1sScVqo4gbkw2">
+      <li data-page-node-id="niqfmhc2bfKy5iPvGiiuMY"><b data-page-node-id="ZDjHRJfqrBiTuvYYBCxQ0i">非原生下拉</b>——模拟 mousedown 打开面板，按「完全相等 → 前缀 → 包含」三级匹配选项后点击</li>
+      <li data-page-node-id="VAqrOYYossH4AartPhYvDr"><b data-page-node-id="aPPsLF3EdqWHA7sRzOA2nv">日期选择器</b>——先试直接赋值，失败则打开面板按「年 → 月 → 日」逐级点选</li>
+      <li data-page-node-id="oBzfMzbjw0Hosog8GqI9GB"><b data-page-node-id="JPuV9TRod49SBfgkt4e3sz">省市区级联</b>——把「吉林省长春市南关区」拆成三级逐列点击，支持自治区、自治州、直辖市、单列市</li>
+      <li data-page-node-id="ClSDjW4IlKPMSjQHlFgx28"><b data-page-node-id="xrAHAekcbrBSMgdHUMKYBX">重复经历块</b>——先数页面有几行、你数据有几条，不够就自动点「＋ 添加」补出行数再填</li>
+      <li data-page-node-id="ncVtgHBPuGot6N5Yu1Ak3j"><b data-page-node-id="QlYij1JmQAzt0xiDVa1QKA">简历附件</b>——弹窗里传一次，填写时自动塞进上传框</li>
+    </ul>
+    <p data-page-node-id="wtoREgCk4JNMeWovBtqu2r"><b data-page-node-id="iElAi11b0eRNxek9f6CUpl">你不需要做任何事</b>，打开表单页点填写就行。相关开关在弹窗「⚙️ 填写选项」里的「深度填充」和「自动上传简历附件」。</p>
+  </div>
+
+  <!-- 功能二 -->
+  <div class="card" data-page-node-id="4KUw5ZF6hXfAdn1NdCKpvc">
+    <h3 data-page-node-id="DaiGH9B6DmBZVcdbu7ssND">② 悬浮球 · 一键撤销 · 填写战报</h3>
+    <p data-page-node-id="ZnT2FiN2B6aQomBGhUlDtH">在表单页右下角会出现一个可拖拽的小球，点一下展开菜单。填完之后不再是一脸茫然：</p>
+    <ul data-page-node-id="mHJNFNgjwP561VMAgloy8z">
+      <li data-page-node-id="2JWLGiiMDSt8svLmBE431e"><b data-page-node-id="obpakEJG0As8E8ySs6h2Wm">战报浮层</b>——顶部显示 <code data-page-node-id="7DgwCHYOIvDcjZFNlheXkM">已填 12 · 待手填 3</code>，分两组列出「插件没填上的」（带具体原因，如「选项里没有『共青团员』」）和「页面里没认出来的空白框」</li>
+      <li data-page-node-id="9FRq9OMqSWQWkh1MCij7pA"><b data-page-node-id="cPzQEtfayiaxxPME5NiwFq">点战报里的任意一条</b>，页面会自动滚过去并高亮那个框——不用肉眼找</li>
+      <li data-page-node-id="QDk9nIZNN6dto7NoGb4XJ5"><b data-page-node-id="zGYiIpdQ6ahpMjg5OeL2cD">一键撤销</b>——填写前把每个控件的原值存成快照，撤销时逐个还原，并清掉绿色高亮</li>
+      <li data-page-node-id="KatI0R9AnY7YKEJzKLXzS8">战报 15 秒后自动收起；鼠标停在上面则保留</li>
+    </ul>
+    <p data-page-node-id="X0YdfTliKCj6gG1HwT8WSB"><b data-page-node-id="nfKtXrwttoCehV46nB2zC4">撤销的四个入口：</b>悬浮球菜单 / 战报里的「↩ 撤销这次填写」/ 弹窗按钮 / 快捷键 <code data-page-node-id="3kPkip1twEFp4GeDyY74yk">Ctrl+Shift+Z</code>。</p>
+    <div class="note warn" data-page-node-id="B5I8vEaT6fDaMl0d4XaOPg">
+      页面刷新后快照失效，会提示需要重新填写——这是刻意的，比悄悄恢复到错误状态安全。
+    </div>
+  </div>
+
+  <!-- 功能三 -->
+  <div class="card" data-page-node-id="ADgvHsDoxXssi8opY6idle">
+    <h3 data-page-node-id="tIBXkdO3oI1EoLPToQdu5u">③ 让插件自己学会新网站（字段记忆 + 点选）</h3>
+    <p data-page-node-id="S3Si7azJu3vty6sY5yrqxK">这是这次最有价值的一块。以前插件认不出来的框只能改代码，现在你自己教它：</p>
+
+    <h4 data-page-node-id="jBHVc8A1bg2BxwmCYx6Pqn">方式 A：从战报里补</h4>
+    <p data-page-node-id="RA59KQgo2WK3jXqcajk4Mv">填完后战报里「页面里没认出来的空白框」每一行右侧有「记住」按钮 →
+    点它 → 弹出字段选择面板（带搜索框）→ 选中 → <b data-page-node-id="3AFRp1PUuu1dUZlfZCNMhY">插件立刻记住并当场按新映射填一次</b>。</p>
+
+    <h4 data-page-node-id="HuQjywAPKzf65yOokJbBY4">方式 B：主动点选（推荐首次遇到新站点时用）</h4>
+    <ol class="steps" data-page-node-id="THSUMPQOMR2lUXNoVnn1sh">
+      <li data-page-node-id="nTXhPzkQ7444itVrNyvIF2"><b data-page-node-id="FyBj2VxhQXj6d6lekhu6We">悬浮球菜单 → 🎯 点选生成适配器</b><span data-page-node-id="vrepK5VZz0895VOeSaEuAO">页面顶部出现提示条，鼠标划过输入框会蓝色描边</span></li>
+      <li data-page-node-id="Hhif7FUmGNGMojoWYHAnlD"><b data-page-node-id="yvS5qnGbwoXq4A8BSOiddN">点上要记录的框</b><span data-page-node-id="ICdDzw7tJHlCY89ivB7RBN">弹出字段选择面板，面板上会写明将使用的选择器</span></li>
+      <li data-page-node-id="7vlQfnVFLE9qYxiDi2HYvv"><b data-page-node-id="cDIT65HiMBfacP404m0X2r">选完字段</b><span data-page-node-id="ztxqvC1YYJE6jwJK55tS1B">绿色描边表示已收集，并弹出「已收集 N 个字段映射」面板</span></li>
+      <li data-page-node-id="tMhqlnpoVbzr5sgFU8R2hj"><b data-page-node-id="kO16IEASRic66kIUBddtF8">面板上可「继续点选 / 复制代码 / 完成」</b><span data-page-node-id="oDiHdVQTAfpSTQAJVGYwcN">「复制代码」生成的是一段能直接粘进 <code data-page-node-id="n3j14CmtoXYUWfEGqAF0uo">content/sites.js</code> 的适配器片段</span></li>
+    </ol>
+
+    <p data-page-node-id="hADc8D465SrfDIS3Mi7jyk"><b data-page-node-id="QDVYP9esLkJ8zegvp6dYBR">记下来的东西能扛住改版：</b>同时存了「精确选择器」和「指纹」（tag + name / placeholder / 标签文字）。
+    选择器找不到时按指纹兜底；选择器在全页不唯一时<b data-page-node-id="YwUBvZz5TJYEaVsKV7sM72">宁可不认</b>，也不会把值填到错的框上。</p>
+    <p data-page-node-id="PVq7FZAbOEFHmTRRcq5O0t"><b data-page-node-id="m66Dyfp0yeUBVnKdlMAtNd">命中优先级：记忆 &gt; 站点适配器 &gt; 智能识别。</b>你手动确认过的东西，永远排在机器猜测前面。</p>
+    <p data-page-node-id="qRBwK5k74i2wAUthMziLQH">弹窗里有「字段记忆」管理区，可以按站点查看 / 单条删除 / 清空，也能直接导出适配器代码。想对比纯智能识别的效果，可在「⚙️ 填写选项」里临时关掉「优先使用字段记忆」。</p>
+  </div>
+
+  <!-- 功能四 -->
+  <div class="card" data-page-node-id="yh3w0IO0hYPE9dcrCOBt9J">
+    <h3 data-page-node-id="lxKaZlWBSL7vsn0aR8pG74">④ 多套简历方案 + 期望职位自动推断</h3>
+
+    <h4 data-page-node-id="CorBFuhzaVpuPg7QaD11q5">多套方案</h4>
+    <p data-page-node-id="KIqZLSj5xvmx0Wn5cOr4bf">弹窗顶部现在是方案条：下拉选方案，<code data-page-node-id="X5hckiV2qd0CvO6wzji1kr">＋</code> 新建、<code data-page-node-id="gzomcaDO9SS6ksfgpPG3Gp">⧉</code> 复制、<code data-page-node-id="5BcSnqeq4Aq0IXCVeMBCG0">✎</code> 重命名、<code data-page-node-id="mxEN3UftZtEqHQmDKEZMU9">🗑</code> 删除。
+    一套方案 = <b data-page-node-id="d48F4WAgqoGcBQFFpwoKsB">字段数据 + 经历块 + 简历附件</b>，切换时三者一起换。</p>
+    <ul data-page-node-id="r59n7pvunIshOwH63yGOYM">
+      <li data-page-node-id="Dg7v3djbQWpMCHVzjZGIZv"><b data-page-node-id="2ERgXEl8goAEvnK6sXDsh7">切换是手动的</b>——不会因为你今天看了个新岗位就偷偷把简历换掉</li>
+      <li data-page-node-id="C30LBtFcWHYFz7fx04ye7O"><b data-page-node-id="oKo3zxj8mFS8XSOC1cBhS4">附件按内容去重</b>——复制方案时附件只存一份引用，不会因为方案变多把存储撑爆</li>
+      <li data-page-node-id="vbSCauDU6Y6AF6ZFEBYYby"><b data-page-node-id="2SOaI77FmIPl55V00OVki4">老数据无感升级</b>——升级后第一次打开会把已有的简历原样包成一套「默认方案」，不丢内容</li>
+    </ul>
+    <p data-page-node-id="BuW4pgD74okcjohFtoPrBh">建议这样用：建「机械岗」「硬件岗」「通用」三套，投递前先在下拉里切一下。</p>
+
+    <h4 data-page-node-id="tAIBlhyBeaq5ngS7R6PIqt">期望职位自动推断</h4>
+    <p data-page-node-id="13wHG6FxdArSg0uDFs8BA2">校招站点标题几乎都带岗位名（示例：<code data-page-node-id="gQU4Ph1fEzQ1bzGmKbnITe">字节跳动-后端开发工程师-校招</code>）。
+    插件会把标题按分隔符切段打分——含岗位词加 10 分，含公司词扣 12 分，含站点词扣 20 分，取最高分那段：</p>
+    <ul data-page-node-id="CcpiC6nKixCS0rQKBjU4Rs">
+      <li data-page-node-id="04B4LkkIfnh3AOadOPZmFD"><b data-page-node-id="NI53oeCiaKlxxZpGh40cB8">门槛</b>：没有岗位词的段落一律不要，宁可留空也不乱填</li>
+      <li data-page-node-id="KTNu2EMillks7COa9pzVVa"><b data-page-node-id="lLcdU7xjDUZhbdOStCVFho">斜杠不轻易切</b>：只有斜杠<b data-page-node-id="QCchpMmF6ga1frm6ClNfjy">两侧带空格</b>时才当分隔符，所以「C/C++开发工程师」不会被切成两段</li>
+      <li data-page-node-id="fHH6PV2uUZypdZxIPOoGPx"><b data-page-node-id="6eCDhwV4Qp0gZx8XsDwcy9">城市</b>：标题里找城市名（含「北上广深」这类简称）+ 拼音域名兜底</li>
+      <li data-page-node-id="X4oZbYrDyEjG3OoetXAGyz"><b data-page-node-id="427qQUkwnL1cRWKsulmkHC">推断结果总是覆盖简历里的写死值</b>，但会在战报浮层里单独显示一段「岗位已按当前页面调整为 XXX」，所以你随时知道填的和写的不一样</li>
+    </ul>
+    <div class="note warn" data-page-node-id="MXFP3CVIRDvOpAHOV0VaKn">
+      不想要这个行为？在「⚙️ 填写选项」里关掉「按当前岗位自动调整期望职位 / 期望城市」即可。
+    </div>
+  </div>
+
+  <!-- 功能五 -->
+  <div class="card" data-page-node-id="ElIVvVgfAx8oImjfAVpDJK">
+    <h3 data-page-node-id="Gpb2rLz7Ru2QJ4KiZpevEx">⑤ 投递台账</h3>
+    <p data-page-node-id="TvteZK9FQzkA2ClUBjEoQE">投递本身变成可追踪的数据。一条记录包含：公司、岗位、城市、链接、来源站点、状态、备注、时间。</p>
+
+    <table data-page-node-id="VBL1LScNEny4qf0Z85qBa7">
+      <thead data-page-node-id="uH9Yn0ZwZVVQ4KPba4ZRFb"><tr data-page-node-id="UFfDuPx4nAHYZCiSt8YK9c"><th style="width:120px" data-page-node-id="BDq1Fj4OG46c4KzIn3iURF">状态</th><th data-page-node-id="1EJY3vnMLCLS5WGRlxm9km">含义</th></tr></thead>
+      <tbody data-page-node-id="oWKCOAlsiWnmz9Q89i4GRJ">
+        <tr data-page-node-id="rUrUYifKwKXcXnGb6HD9gf"><td data-page-node-id="T9jA0p3UaU9RSApKWGrYmA"><span class="tag" style="background:#eef3ff;color:#1d4ed8" data-page-node-id="Jtffkp6ORjFnn4OUkpLFqF">已投递</span></td><td data-page-node-id="0e8jDusXaDXBtMrI7gdUYw">刚投出去，等消息</td></tr>
+        <tr data-page-node-id="o4cr3C7C8ohDrez0D2Cd8T"><td data-page-node-id="tPYHFgsxbGU5Bk5BsuSrKp"><span class="tag" style="background:#f5f0ff;color:#7c3aed" data-page-node-id="kbGvdTJ3kKNI5LN5G0Iqyb">笔试</span></td><td data-page-node-id="393rQIe3VmZfvYiwD3oJl4">收到笔试邀请</td></tr>
+        <tr data-page-node-id="EyctlbX6i8eW9OHzBU71ST"><td data-page-node-id="pENhOu1CFjRLpZwHcqoq56"><span class="tag" style="background:#ecfeff;color:#0891b2" data-page-node-id="7JsRmc4lJzQAZQCrz4BUOj">面试中</span></td><td data-page-node-id="GWd0mBr3reIIp1NM2X17tT">进入面试流程</td></tr>
+        <tr data-page-node-id="DkDh2UMdwRyDI5pdk4rQMM"><td data-page-node-id="B7fXut0lhmjfvpCkTUZclj"><span class="tag" style="background:#edf9f1;color:#16a34a" data-page-node-id="a93T6lq9cCCfNL5YvkeW9P">已通过</span></td><td data-page-node-id="HtuueO1JopQdhMsVEGogz0">拿到 offer</td></tr>
+        <tr data-page-node-id="2dABGX3zQABDNtyVAhDI0r"><td data-page-node-id="b4TCdKrEUULSoozDyuBIwz"><span class="tag" style="background:#fef2f2;color:#dc2626" data-page-node-id="GsuupiBDSyMCBnRhY7WMaD">已拒 / 无回应</span></td><td data-page-node-id="AzWlPVkJvSqePotTI92kzT">结束，归档</td></tr>
+      </tbody>
+    </table>
+
+    <h4 data-page-node-id="mldy5WKqlMXSoWCur0dGVw">三种记账方式</h4>
+    <ol class="steps" data-page-node-id="gYoNRlZeaUpt0IKB2SadtH">
+      <li data-page-node-id="pnSC1EpM0b6VOx49tenlOW"><b data-page-node-id="ISfTs7e5nrvJSgFBGqYQi1">投递成功后自动提示</b><span data-page-node-id="xAURvOcYsKnqESRxk4klVK">提交后插件隔 2.6 秒看一眼当前页是不是「投递成功」页，是的话右下角弹卡：「检测到投递成功 · XX公司-XX岗位 要不要记进投递台账？」，点「记一笔」完成。<b data-page-node-id="hVYqlC64kxiPYnvRsFefKw">绝不自动记账</b>——误记比漏记更难清理</span></li>
+      <li data-page-node-id="0GyhAW95cWlpnnWLIyHF1S"><b data-page-node-id="iA12nBX4Nm7dgvp0vZevKF">悬浮球菜单 → 📝 记一笔投递</b><span data-page-node-id="f9Mh3OkpGGKfa6bBv0NFNQ">不想等检测，或者投递发生在别的页面时用</span></li>
+      <li data-page-node-id="REFghwwUOspgMUljNKk2JE"><b data-page-node-id="BuZdvRozF61Usq3R9BYYuB">弹窗 → 投递台账 → ✎ 手动加一条</b><span data-page-node-id="zt7iKYrm0l0MsuEH3MpS0C">补录官网投的、内推的</span></li>
+    </ol>
+
+    <h4 data-page-node-id="bZHBVqGAnRygVhuWJsOywk">弹窗里能做什么</h4>
+    <ul data-page-node-id="lbGvAIlEB9aByQwHTCHnjv">
+      <li data-page-node-id="snKeTwCmfRcnUE2kLKW99X"><b data-page-node-id="TPQwjP06iDcZoDPsqIUio1">统计</b>：今天投了几家 / 本周投了几家 / 还在等结果几家</li>
+      <li data-page-node-id="MFeJqDxUZmAEGeAsHnuwD9"><b data-page-node-id="U3CP7K2OMd6cYcSAIZhppu">筛选 + 搜索</b>：按状态筛，按公司 / 岗位 / 备注搜</li>
+      <li data-page-node-id="EYO0lSAva0meUNRxN6csZX"><b data-page-node-id="heT7TttlfAbveJeAvC7VHB">改状态、编辑备注、删除单条、清空</b></li>
+      <li data-page-node-id="S7xWEj1ZtPcspPUS7QEDNi"><b data-page-node-id="h75yZ4kHTGvuFE2AjI5UrI">📤 导出 CSV</b>——开头写了 UTF-8 BOM，Excel 双击打开中文不乱码</li>
+    </ul>
+    <p data-page-node-id="4IdHunkfNoKle2Gp2ruebs"><b data-page-node-id="rJbsSnTqLx0RgfUhoCJuCy">同链接去重</b>：比对前先归一化（链接去掉参数和末尾斜杠、公司名去全角空白、岗位名忽略大小写），
+    同一个岗位重复记只会合并成一条，不会堆成两行。最多保留 500 条，超出丢最旧的。</p>
+    <div class="note warn" data-page-node-id="XmHscdPUKEm2dMCJeaTNRH">
+      识别成功页时特意排除了「我的投递记录」「投递列表」这类页面——它们本身就含「投递」二字，
+      不加排除规则会天天误弹。
+    </div>
+  </div>
+</section>
+
+<hr data-page-node-id="TsG1t60jze8QVIwBy55K9q">
+
+<!-- ========== 4 ========== -->
+<section data-page-node-id="6TghDLqL5slEYPUpfv21od">
+  <h2 data-page-node-id="vvDDJsn7DylCcEC9hTmBo9"><span class="n" data-page-node-id="HjsjuLtemBS3y6wyctyaT1">04</span>日常使用流程</h2>
+  <p class="sub" data-page-node-id="F9cRWU2IRnauxybib4lEH5">从装好到投完一份，推荐按这个顺序走。</p>
+
+  <ol class="steps" data-page-node-id="RHudP6QCY2smx5RRylDNwM">
+    <li data-page-node-id="3CR1wVe7lJ6xF2D6omUk7z"><b data-page-node-id="rxZnALtLvL5c7wN5a6x840">更新扩展</b><span data-page-node-id="V8NgvfqdHOTEi4w83wfCXh">打开 <code data-page-node-id="y2HiBsQRLmGfzhRooBxEGn">edge://extensions/</code>（Chrome 用 <code data-page-node-id="BM9Djp1GIq77Cx1KASAw23">chrome://extensions/</code>），在「简历助手」卡片上点 <b data-page-node-id="V611wW4qmthA2yfToL7XvK">🔄 重新加载</b>。如果是新装，点「加载已解压的扩展程序」选本文件夹</span></li>
+    <li data-page-node-id="HOH4r7HSHLXKx684FIVFZM"><b data-page-node-id="hX4TKoFDx7UT7W1F4JkZe9">确认版本是 2.0.0</b><span data-page-node-id="lkAX7Eo6hIjIzStT8QSpdO">弹窗里显示的版本号是直接读 manifest 的，改一处不会不同步</span></li>
+    <li data-page-node-id="CFBObrHCfPAGBFk0BhgDqx"><b data-page-node-id="Q2CQTiv1Bd5ZRtyWFehSCY">建方案</b><span data-page-node-id="WqiEr4udEGgdLaKTsSVCSz">弹窗顶部方案条 → <code data-page-node-id="nqwzWAEnvuowMpHilOVEpD">＋</code> 新建「机械岗」，再 <code data-page-node-id="IL7OTCXpkLdL3Tc3qc68mC">⧉</code> 复制一份改成「硬件岗」。每套方案单独编辑字段、经历块、附件</span></li>
+    <li data-page-node-id="jmAG3HYaSoyI6NRCjpEGTX"><b data-page-node-id="wQiq1tBC8Wp3xGxIDATJFP">首次遇到新站点，先教它</b><span data-page-node-id="tV0NKzhlDWMJeAclHqPLWP">悬浮球 → 🎯 点选生成适配器，把插件没认出来的框点一遍。同一个站点只需做一次</span></li>
+    <li data-page-node-id="pL3nCs2BbgPXTXNUGhTAK9"><b data-page-node-id="PB8IlUBtGfqprCavWPW4Kx">投递前切方案</b><span data-page-node-id="zZVS7GFaAe1gIYWmGtnl8O">投机械岗就切「机械岗」方案</span></li>
+    <li data-page-node-id="mRB5jhuHEVclbrD1vCSdaW"><b data-page-node-id="vMoODRbHplSonen5hCaDeE">填写</b><span data-page-node-id="x9gpSg7S40pnbbhEV7igcN">悬浮球点「⚡ 填写当前页面」，或按 <code data-page-node-id="ocEjIrfcMLBWel5FSHL9EJ">Ctrl+Shift+F</code>，或右键菜单「用简历数据填写本页表单」</span></li>
+    <li data-page-node-id="C03K6CjLzllUry2l6XPrBg"><b data-page-node-id="2IwmCVYebUpaSwB3hVqWAz">看战报、补漏</b><span data-page-node-id="Hy8lUYb6AWERh9HUH3PYsZ">看右下角战报：绿色高亮是已填；点条目跳到对应框；没认出来的框点「记住」教会它</span></li>
+    <li data-page-node-id="HUtmA33dH0rS0G6a6xvuCj"><b data-page-node-id="YeeMIJq0gY6M5j9no94puF">填错了就撤销</b><span data-page-node-id="6GZ4tFWQAU0KV5mICvu3Pf"><code data-page-node-id="b0hE2Ik8L3v0eFMBAaoojP">Ctrl+Shift+Z</code>，或战报里的「↩ 撤销这次填写」</span></li>
+    <li data-page-node-id="IuYNfYA27fB8f97jig8EYO"><b data-page-node-id="sfqj7q8sDnzDYMKcZsR5d1">提交后记账</b><span data-page-node-id="QntH1XhsC8PnVQftTci7WC">成功页会弹卡 → 点「记一笔」</span></li>
+    <li data-page-node-id="2ILEW32lKmDzbACq4XrrBW"><b data-page-node-id="LuKDx2ZeYa4CKobGGCt0SW">定期看台账</b><span data-page-node-id="Yr3HKsPRSnsGEkQEfhtGqF">弹窗「投递台账」看今天/本周投了几家、几家在等结果，把该改状态的改掉，需要时导出 CSV</span></li>
+  </ol>
+
+  <h3 data-page-node-id="aTA4riIh8SWiPTReEt6Soa">速查表</h3>
+  <div class="grid" data-page-node-id="EmAfk9lft5rSnQnnd4G0gF">
+    <div class="kv" data-page-node-id="ZcbIMNeom1Nv42Xmj5Yw04">
+      <h4 data-page-node-id="u6CCMxWs82n79Q7xuV8AaI">⌨️ 快捷键</h4>
+      <dl data-page-node-id="KlAGnm0aKHrbvm4mc02AmT">
+        <dt data-page-node-id="cZpSgO9S4PXWnsfrpPuCqS">填写当前页</dt><dd data-page-node-id="oa1NMupBzWJstLlhiJC4RR"><code data-page-node-id="b5RXca9gL2CGXbjOmldqbt">Ctrl+Shift+F</code></dd>
+        <dt data-page-node-id="dwq8QmhNNTfHvM8jQFB8lu">撤销上次填写</dt><dd data-page-node-id="cy8SGzir4v2Xew11WkqpbK"><code data-page-node-id="m26SAB1GH9Ci6vFivUjlw6">Ctrl+Shift+Z</code></dd>
+        <dt data-page-node-id="XCFpxTnqfoYdayL4WvtMdG">退出点选模式</dt><dd data-page-node-id="Wy7rAGR5brs2kUe9xKvpqk"><code data-page-node-id="1eiSxV3fgZL8mObrJ6c2yv">Esc</code></dd>
+      </dl>
+      <p style="font-size:12.5px;color:var(--ink3);margin:10px 0 0" data-page-node-id="Jrpwwr5vHJYhNy8yQDVEOf">
+        填写键可换：<code data-page-node-id="YfyKObUHrmJZ9sC5HLBpNp">Alt+Shift+F</code> / <code data-page-node-id="xkTmrbKbuiGc1lAkq0ekl1">Alt+Q</code> / <code data-page-node-id="D6DYTi0GOBpLItKNDivFgD">Ctrl+Shift+U</code>，也可关闭。
+      </p>
+    </div>
+    <div class="kv" data-page-node-id="1eQqB5cFDLn0OCUvx6kzjB">
+      <h4 data-page-node-id="riGiIBPEqSljsHXjuSFPXu">🖱️ 四个入口</h4>
+      <dl data-page-node-id="kV6lWkfz66QtRqI9C0ezHK">
+        <dt data-page-node-id="5DOoZWNlzQqoudMROam4CE">悬浮球</dt><dd data-page-node-id="KgQDEwuB059DzEGmfS0wFi">填写 / 撤销 / 点选 / 记账</dd>
+        <dt data-page-node-id="mkaDw7FhRr9f2E2fzCr6A5">右键菜单</dt><dd data-page-node-id="L236tvVufBFOaJgPYHl6K6">填写本页 / 撤销上次</dd>
+        <dt data-page-node-id="GfwEh05qwTHkJBJWcqI3y5">弹窗</dt><dd data-page-node-id="xzbkf5t0vsKulCdhounbkk">简历、附件、记忆、台账</dd>
+        <dt data-page-node-id="2LoLbbng1ixDVEftq1RbyH">扩展图标</dt><dd data-page-node-id="JUheKce0fqiJleBQE2qPtT">打开弹窗</dd>
+      </dl>
+    </div>
+  </div>
+
+  <h3 data-page-node-id="i8x4qxrI3Ov1lUyOIAA3K9">八个开关（弹窗 → ⚙️ 填写选项）</h3>
+  <table data-page-node-id="kH6tqJGEgFXWPwRcB7gMzr">
+    <thead data-page-node-id="lCgG3mkHp7GE490USAXmxs"><tr data-page-node-id="G0PGlZ0zU34ojquXTuyzeA"><th style="width:250px" data-page-node-id="LkDVkienuN288TUfBUplZc">开关</th><th data-page-node-id="7w0xL6j9B76tOf5XRNmsVu">默认</th><th data-page-node-id="oobpFD92MTdZDq0ZS9jeu9">什么时候关掉它</th></tr></thead>
+    <tbody data-page-node-id="ig58fBc0tAVXAoEJYaRCXK">
+      <tr data-page-node-id="fJaPeniDhjnQAOBnZf2pMu"><td data-page-node-id="1cciPucz6hwNBYtx7rbv6Y">只填空白框（不覆盖页面上已有内容）</td><td data-page-node-id="3MqfoBjU7cGBgXRA6jWnPD">开</td><td data-page-node-id="BYyiH7RuVlAPyt4BeHUiYk">想用简历数据强制覆盖页面上写过的内容时</td></tr>
+      <tr data-page-node-id="aZjaKNDTRziMBxPlPQepxz"><td data-page-node-id="qRy19cLrE9N4nFsuqE6MB0">深度填充组件型控件</td><td data-page-node-id="3mf1EA68sgoOYZfalIDPRU">开</td><td data-page-node-id="aGJ2yqR2CNR2xX9KYpSfSP">遇到站点组件行为异常、填写卡住时，可先关掉排查</td></tr>
+      <tr data-page-node-id="zP1g9S7MPOxt64MBG1lRCz"><td data-page-node-id="kRRx9x3CjQwrR4yqI4PEH7">自动上传简历附件</td><td data-page-node-id="0XEDmFizqNeZgH8q61CC9A">开</td><td data-page-node-id="CRpFsJNpQQ7OEZG2xi8GeD">不想每投一家都传一遍附件时</td></tr>
+      <tr data-page-node-id="ka4p69LtLhbYz5lw93iF0F"><td data-page-node-id="Q5qTVPenm3B4Fd3iaKbdXD">在表单页显示悬浮球</td><td data-page-node-id="9Wid8j4j5gHqD9Lz6NF91x">开</td><td data-page-node-id="0CoaVgOIgmZj0CJZuaMJ0K">页面右下角有站点自己的按钮被挡住时</td></tr>
+      <tr data-page-node-id="HgKT7Q24dgSLRGEimTyNGP"><td data-page-node-id="wxXMoPxF04YABGjYB1bACb">进入已适配网站时自动填写</td><td data-page-node-id="vvVu1CitE0BpEaJhHVCtTM">关</td><td data-page-node-id="OLrty0CP3EdPeliAMAWARu">已经默认关着，避免误触发；想全自动可打开</td></tr>
+      <tr data-page-node-id="J8FTEng2SUT4AlGGZY3WyQ"><td data-page-node-id="CSrSnFRbMSoNPw43morDaM">优先使用字段记忆</td><td data-page-node-id="Hy8CF7eQtLn3Tt2kYtXOK9">开</td><td data-page-node-id="Lb7VhUFY6qEzkx6Njvf2jY">想对比纯智能识别的效果时</td></tr>
+      <tr data-page-node-id="W8ZT8w7nrY9AtldlZ82ast"><td data-page-node-id="LFw6iw4dVWa8tf06hQZiMl">按当前岗位自动调整期望职位 / 城市</td><td data-page-node-id="CGsET9omRPeanUE1XZjU28">开</td><td data-page-node-id="dWBZ7yt3BecHM783nR8c05">简历里的期望职位是精心写的、不想被覆盖时</td></tr>
+      <tr data-page-node-id="5dFoQb8kCjV5qTDlPwIqPB"><td data-page-node-id="Nhr3x8Pn3udl910mN2N4fa">投递成功后提示记账</td><td data-page-node-id="KBADD8x9jqetUYjY3pfAEt">开</td><td data-page-node-id="MFn8ZG0XGza3RQkX7fwCgv">嫌提示卡吵时</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<hr data-page-node-id="8TEYngryVEVU0B4MVzTYjQ">
+
+<!-- ========== 5 ========== -->
+<section data-page-node-id="13NBIyi1F8g6U5sHAAGdqd">
+  <h2 data-page-node-id="hLboi7kpTyTNZCM2Rfg9Re"><span class="n" data-page-node-id="RHRBMCLutFBcclJjJa90UB">05</span>顺带修掉的 6 个真实缺陷</h2>
+  <p class="sub" data-page-node-id="EV2303eRLl719XEhA3QAcJ">都是自动化实测暴露出来的——不修的话，前面的功能等于白做。</p>
+
+  <table data-page-node-id="rTbRKG0WDTmk5B95QWr3kX">
+    <thead data-page-node-id="YXxBYOFFyspViENwuoPzdX"><tr data-page-node-id="AnMMFfdIRvIsijnF7ku2gb"><th style="width:56px" data-page-node-id="fdNDPidzxQ6Gx4PNjqLieX">步骤</th><th style="width:230px" data-page-node-id="KbNIEFr7qTkJLrRGZBRxKQ">缺陷</th><th data-page-node-id="x34WQ46gWKtmKrWJi9SHdr">原因与修法</th></tr></thead>
+    <tbody data-page-node-id="jSsLryehPtbT9NX3WvJgit">
+      <tr data-page-node-id="iVqUKqAwKkZFqeN8Br3EYO">
+        <td data-page-node-id="6AoIoMShByMSKoOO0NYRDX">二</td>
+        <td data-page-node-id="Asf8l0gjgbyG0qPxwvIX5E">非原生下拉<b data-page-node-id="9udwWLDom1LnoWV7kiqCpu">全部填不上</b></td>
+        <td data-page-node-id="Fi6Manlj04ahGmYd05Gwap">防误填关键词里有 <code data-page-node-id="8BiY8JMKv8nAQJ3jJId1FK">search</code>，而 antd Select 的内部输入框 class 恰好是 <code data-page-node-id="8XxArwlnLS1m4eJrp2Kt4x">ant-select-selection-search-input</code>。修法：class 不再参与组件型控件的判定</td>
+      </tr>
+      <tr data-page-node-id="XbCzZ1CiZ2Qz2i9a9nQbaX">
+        <td data-page-node-id="iph81VbPEP5vAbXeD3apYu">二</td>
+        <td data-page-node-id="XvGUMDIPJoHvEDlrBOwqK0">下拉面板会<b data-page-node-id="BrjRbA0GtNimng4BH4z1Bl">串台</b></td>
+        <td data-page-node-id="sjTkZLrTH4Gn9wqDEFGeGw"><code data-page-node-id="RBVyne9NvphVorKn1DO8Bt">[class*='panel']</code> 把站点自己的布局卡片也当成下拉面板；且按「取最后一个可见面板」猜测归属，多控件同页时会拿错。修法：对比点击前后「新出现的面板」来判定归属</td>
+      </tr>
+      <tr data-page-node-id="lH60ES0woD4EnZFMh1TcgR">
+        <td data-page-node-id="aEzscdiMzu0blvYnVfA8Px">二</td>
+        <td data-page-node-id="TCE5RFrPlfsxmcgTyiseqs">省市区级联<b data-page-node-id="guY0tDiTdwjEuLNg1d64Ks">永远填不到第二级</b></td>
+        <td data-page-node-id="zI20kROZJFpxDmPum9q0Ie">选项 class 是 <code data-page-node-id="b7vT1pp93dKIQTj9dbv5FC">ant-cascader-menu-item</code>，同样含 <code data-page-node-id="pW72xDgHMNAjFOYwr0bA5Q">cascader-menu</code>，于是「第 2 列」取到的是某个选项。修法：按 class 里的 item 排除选项</td>
+      </tr>
+      <tr data-page-node-id="BWFMEjPksXruEkpgB35Ffo">
+        <td data-page-node-id="l1cNNOC6lXTK5LvKwXU8gh">三</td>
+        <td data-page-node-id="dvTU5EDIfdXZ5Uei28pUZx">自定义字段在悬浮球 / 快捷键通路上<b data-page-node-id="ObRkh0J7v13X4cxRCFCQVX">永远填不上</b></td>
+        <td data-page-node-id="wvDJuBvRXh8G9yR3CpdfvB">第二步换了填写入口后只把 <code data-page-node-id="Z6orwWZuMJG3NrQarp4EET">resumeData</code> 传给了引擎，没把自定义字段（键是 <code data-page-node-id="0KirqdHuYY5eLlevPJDwFm">custom_&lt;id&gt;</code>）合进数据。修法：两条通路共用 <code data-page-node-id="bWC4MWi3O0tjB2ieCutq3W">buildFillData()</code></td>
+      </tr>
+      <tr data-page-node-id="lvGT2s5oaqda1aVhdIgkOp">
+        <td data-page-node-id="a8LCpU3040fzH00FgvmmuD">三</td>
+        <td data-page-node-id="Cxs8Q2eFCMJYmpEBHr2ZcF"><code data-page-node-id="X8oAYPwh08hLNjiSGchnAh">hud.js</code> 里 3 个变量<b data-page-node-id="tjTwgCwRGpiY49EPIs0bHg">漏声明</b>，面板打不开</td>
+        <td data-page-node-id="sSLAsOP5pNIpad74za4CHE">变成了隐式全局变量，页面有同名全局时静默串台。修法：显式声明 + <code data-page-node-id="Fb1eX0mwT3zhBA3ygLYDUC">ensure()</code> 在节点缺失时自愈重建</td>
+      </tr>
+      <tr data-page-node-id="oaxcpSEVfDP8JSD3GL9tgp">
+        <td data-page-node-id="vX0bCl69d9pup6ZJiGz4pu">三</td>
+        <td data-page-node-id="mvhIhRT0mjGeiDxyl8h2EE">字段分组<b data-page-node-id="nYlkZR4JK2Bm38k20LBrpP">定义了两份</b></td>
+        <td data-page-node-id="AQB0NNXj2Z0a4ZFOOXQeO4">弹窗一份、页面里一份，迟早不一致。修法：统一到 <code data-page-node-id="xRJbJjqgGI2dtHj6EUp2Eo">content/sites.js</code> 的 <code data-page-node-id="hxqjSrdZoASlEe1uuUW9ff">JIANLI_FIELD_GROUPS</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note info" data-page-node-id="NwIyAb7Yxpv9Bgr2sNQJFD">
+    <b data-page-node-id="GS0qXfTRY3ji4qPz3fsSmt">为了不再犯同类错误，静态检查加了这几条：</b>
+    <ul style="margin-bottom:0" data-page-node-id="iEYYnmBknTBOPiYCsuUxgL">
+      <li data-page-node-id="JmuIUlYCXneUtRMUuH1HFA">所有 checkbox 开关必须接上事件——<b data-page-node-id="g4vnHkASwimYbSCUj7ayRX">第三步就漏接过一次</b>，表现为「界面有开关但拨了没用」</li>
+      <li data-page-node-id="3Mm2GgtxMAnA2WYLEel6x7"><code data-page-node-id="HIOqrQOkZknBGxiJoidoeH">background.js</code> 的注入清单必须和 <code data-page-node-id="NgSSUKGuV7y8OZt66ITut9">manifest.json</code> 完全一致——不一致会导致部分页面缺模块</li>
+      <li data-page-node-id="7WNh7sm9audNoJFQUpbqY5"><code data-page-node-id="XiRxfnSfDQTMIkGYML3tUg">content_scripts</code> 顺序必须是 <code data-page-node-id="R5kilQERZPZu3QMscQfGRr">sites → widgets → blocks → memory → infer → ledger → hud → content</code></li>
+      <li data-page-node-id="moIx6i0YZ4HouZsQj9yDzK">弹窗里引用的每个 <code data-page-node-id="OBOAeHX8WwdFKcjLu5BAEk">id</code> 必须真实存在；新模块必须在弹窗和内容脚本两边都已加载</li>
+    </ul>
+  </div>
+</section>
+
+<hr data-page-node-id="eRfxRZzU6sHJhArCFyhrX4">
+
+<!-- ========== 6 ========== -->
+<section data-page-node-id="PeIVEzk8qCjeT1EGNkGWQU">
+  <h2 data-page-node-id="7swzn7Op3IYZ2EPmYV62Ab"><span class="n" data-page-node-id="LleT1X1txK0WO5cwffBvqY">06</span>验证结果</h2>
+  <p class="sub" data-page-node-id="wdrGYHYSP6fHk5gL0gZXsm">每个测试页都是真在浏览器里跑一遍，不是纸面推演。</p>
+
+  <table data-page-node-id="PPRXlK4haD8cJ9VgKIfs03">
+    <thead data-page-node-id="Cx1P85fKHbiymtSSS1cdgm"><tr data-page-node-id="8DY5arYuV26HwzAhefq4Xf"><th style="width:230px" data-page-node-id="So3jp1wYPiSGGlbRUMlbcs">测试</th><th style="width:110px" data-page-node-id="tPcMFi0pOYn0N9TjjbO5Vb">结果</th><th data-page-node-id="EDN5NwnROgJOjA02msgvtF">覆盖内容</th></tr></thead>
+    <tbody data-page-node-id="I7Xn7eUNZypczBqKX2aPK9">
+      <tr data-page-node-id="l6OhBtbFHglFVvXBKCPaG6"><td data-page-node-id="E87dRfXztm7Q2aMGn1isQN"><code data-page-node-id="DRf03qW5AUa1T9byUP53tM">v2-step1.html</code></td><td data-page-node-id="cWaF4aXzLTt2l5Kx3Q9LYO"><span class="tag" style="background:var(--ok-bg);color:var(--ok)" data-page-node-id="S8VswPDeL0NHbATgteGRz7">11 / 11</span></td><td data-page-node-id="SzLLmNXdve9vYzsQbH6CF7">非原生下拉、日期、省市区级联、经历块增行、附件上传、防误填密码/验证码框</td></tr>
+      <tr data-page-node-id="l1EIr8Uze6ep3UxDC1Yt5s"><td data-page-node-id="1sCXZU6Hr3dDujlvTAr8Ie"><code data-page-node-id="a2nM2t2vJU6lKvZpCquAMc">v2-step2.html</code></td><td data-page-node-id="gbUS3RLaxJ13tRHUBzKM2E"><span class="tag" style="background:var(--ok-bg);color:var(--ok)" data-page-node-id="TDWavIbIhnWcKyiOzS6cFT">26 / 26</span></td><td data-page-node-id="JItzH5ZfIKEdgNjPAYAno4">只填空白框、战报计数与条目、点条目高亮、撤销四入口、快捷键切换</td></tr>
+      <tr data-page-node-id="bEhraojupKhoZif9afD13X"><td data-page-node-id="zHdv0hOC0OjVshNB8auTD6"><code data-page-node-id="Q0zIRfOweDtiCs019gniUV">v3-step3.html</code></td><td data-page-node-id="RonQ4dKBDX1HxwHZO2XdTs"><span class="tag" style="background:var(--ok-bg);color:var(--ok)" data-page-node-id="5QmW4hRTklM36XSxflXUJc">43 / 43</span></td><td data-page-node-id="ibpM8VBG9UwJ9DhGb1QT9w">选择器生成、指纹兜底、记忆优先级与回退、战报「记住」全流程、点选全流程、代码片段格式</td></tr>
+      <tr data-page-node-id="Xnf4f3pbyf0GRa5H53NOZo"><td data-page-node-id="bpRWnlCnmBU4ksot2mgRuv"><code data-page-node-id="1nVjOTkzl5dkGYHl6dPRev">v4-step4.html</code></td><td data-page-node-id="NXXEVl59lNDm9Ws9CMFnNK"><span class="tag" style="background:var(--ok-bg);color:var(--ok)" data-page-node-id="ZTFFHoDodQimZEOMFjM98t">53 / 53</span></td><td data-page-node-id="DkvsOYoqoLkd2lCQFCohCr">老数据迁移、切换时镜像同步、附件去重回收、方案增删改复制、导入导出、推断 19 用例</td></tr>
+      <tr data-page-node-id="olsFMzqw3dTwJrF4Fl5oaj"><td data-page-node-id="CgQDnKAreTxeKxDy6l5FwF"><code data-page-node-id="VbvvHGSEyoGQIf3w9nbCWs">v5-step5.html</code></td><td data-page-node-id="GmtvNAwPspT01ao4H4THFw"><span class="tag" style="background:var(--ok-bg);color:var(--ok)" data-page-node-id="Y0VNDDqeb40c7hskk6kjLx">50 / 50</span></td><td data-page-node-id="jLb20CAOCpjdG37sj35z3N">台账存储与去重、状态流转、统计口径、CSV 转义、成功页判别、悬浮球入口、确认卡</td></tr>
+      <tr data-page-node-id="FmWSaYk09yDv0UrNWIr2oi"><td data-page-node-id="5XMJfMRuc7PZp3HW8KYIoV"><code data-page-node-id="mEAWqDJ8jFRqHcJOE0OfSj">test/logic.js</code></td><td data-page-node-id="5XgUuKtvzW5EKxYsYCnlmH"><span class="tag" style="background:var(--ok-bg);color:var(--ok)" data-page-node-id="hLfd00qNYfzRKzRhUoBUfX">26 / 26</span></td><td data-page-node-id="yEmIDHaOyA9n7dVAA7P8Ov">省市区拆分、日期解析、字段归一化、组件类型判定</td></tr>
+      <tr data-page-node-id="8GobTkPyrKVeGs32lvs6qT"><td data-page-node-id="UnQmHwXutYZd6MiFGzrXM1"><code data-page-node-id="pqBEg7YHCyCNc0hW01DHr4">test/check.js</code></td><td data-page-node-id="sAaOPHGt4O11GptnBHkEnz"><span class="tag" style="background:var(--ok-bg);color:var(--ok)" data-page-node-id="qRfIZqB7q7xBTAuY0yciq9">全绿</span></td><td data-page-node-id="H1we56JZQDb9r4LxZPa4rD">文件引用、id 引用、开关接线、注入顺序、manifest 与 background 一致性</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note ok" data-page-node-id="8wVn4CU08q47qeGvcLTvrv">
+    <b data-page-node-id="Xpg2C08xupXKRwL4Fg751j">合计 183 项断言全部通过</b>，且每个测试页都额外校验「本次测试过程中没有未捕获的页面错误」。
+  </div>
+
+  <h3 data-page-node-id="zhNKLOQS5KGhAo2bjfkZnp">你自己怎么复跑</h3>
+  <pre data-page-node-id="yW6DGDC7ATAPF1BogIovLc"><code data-page-node-id="VyHdmr4HqjS5cXc2BxzExW"># 静态检查 + 纯逻辑单测（秒级）
+node test/check.js
+node test/logic.js
+
+# 跑某个步骤的完整测试页
+node test/run-page.js v5-step5.html
+
+# 或者起个本地服务器，用浏览器看可视化结果
+node test/serve.js
+# 然后访问 http://localhost:8791/test/v5-step5.html</code></pre>
+  <div class="note warn" data-page-node-id="xLVAHJ7Gm2mZFBsh2DsGC3">
+    <b data-page-node-id="HWC9YSMEXCzkRR4tcJQ8ig">踩过的坑，写在文档里省得你再踩：</b>
+    <code data-page-node-id="6ycTYuSYVaeHpIK0y9bgjq">node test/run-page.js ... | head</code> 这种接管道会因 SIGPIPE 导致输出为空（进程其实跑完了）。
+    要抓结果请重定向到文件再读，比如 <code data-page-node-id="ACPFx6fXYFGs5fMFxcHHXu">node test/run-page.js v5-step5.html &gt; out.log 2&gt;&amp;1</code>。
+  </div>
+</section>
+
+<hr data-page-node-id="QfRb6bHjzppP1W1K7p2EAC">
+
+<!-- ========== 7 ========== -->
+<section data-page-node-id="OdBTIJLz3E6nDwR8nsGUOU">
+  <h2 data-page-node-id="Riu53dFzhDKk2cY1pfu4JA"><span class="n" data-page-node-id="EAzo2Ls2fYHS7bUALFC0mD">07</span>已知限制与建议</h2>
+
+  <h3 data-page-node-id="PelgIFg14qBakCGMmY1Knc">已知限制</h3>
+  <ul data-page-node-id="3k2IFUGSQiZeGIDSMGZZHE">
+    <li data-page-node-id="sbgeDtL3SgLSzVEeN4e4g5"><b data-page-node-id="Pg3k81EvfEaMA5YOaiERbt">扩展行为需要你手动实测。</b>系统 Chrome 152 起封禁了 <code data-page-node-id="ls2AGI4MRHYfHkFMcGUXgG">--load-extension</code>，
+      没法自动化加载扩展去实测真实站点。测试页是普通网页（mock 了 chrome API），
+      所以自动化测的是<b data-page-node-id="0VncU6Pc3Q8Lweq4Yt14qb">逻辑</b>，真实站点的表现仍需你投几次验证。</li>
+    <li data-page-node-id="ZMJzkZCReb1SnRao20rIf5"><b data-page-node-id="Pj3S1wM0HiZ0wmClzXha8J">推断有边界。</b>标题里完全没有岗位信息（比如标题只写「职位详情」）时，插件会留空而不是猜——
+      这是设计选择，不是 bug。</li>
+    <li data-page-node-id="FDDDJl2zMHFqAFDljRGvcA"><b data-page-node-id="W9ynAKVxWw1MFg8V3Zw2YV">成功页检测是启发式的。</b>遇到没见过的成功页文案可能识别不到，用悬浮球的「📝 记一笔投递」兜底即可。</li>
+    <li data-page-node-id="bwi6Cv3gi5nR65Eedj3ybB"><b data-page-node-id="sFjgoEkShQsAPOoGfHaGoj">台账上限 500 条</b>，超出丢最旧的；建议定期导出 CSV 留档。</li>
+  </ul>
+
+  <h3 data-page-node-id="2bAKp7ZzsCrsx1BHfewbcg">建议的下一步</h3>
+  <ul data-page-node-id="gUmpi7GvHtqVWSYFBqtY7X">
+    <li data-page-node-id="PvMtkmrTVu4RVBdVjnJgpm"><b data-page-node-id="SvDHlxLMhGowIkHOa8ISnU">真实站点实测三轮</b>：随便挑 3 家投一下，重点看组件型下拉、经历块增行、成功页检测这三处。
+      发现问题告诉我具体站点和现象即可。</li>
+    <li data-page-node-id="HX52onWKH5nZKzNW9QBFaS"><b data-page-node-id="DI3m8GemY4JSQHSO8KKbcR">把常用站点固化下来</b>：用点选方式教会 3～5 个你高频投的站点后，
+      把生成的适配器代码贴进 <code data-page-node-id="AARk7eaXJ5DbsPPmfm3VKp">content/sites.js</code>，这样换电脑 / 重装也能直接用。</li>
+  </ul>
+
+  <div class="note ok">
+    <b>已完成：<code>README.md</code> 已按现有能力整体重写。</b>
+    原版停在 V1.x 的功能描述，且引用了并不存在的 <code>docs/</code> 截图路径。
+    新版包含：痛点→做法对照表、五步功能详解、安装与快速上手、界面说明、快捷键与开关速查、
+    15 个支持站点、9 条常见问题、开发与测试命令、项目结构，以及精简版英文说明。
+    三份文档现在的分工是：<code>README.md</code> 使用者手册 · <code>更新日志.md</code> 版本追溯 ·
+    本报告 本轮优化验收。
+  </div>
+</section>
+
+<footer data-page-node-id="jpSqaiqIOFWjLtTYErDJpH">
+  简历助手 V2.0.0 · 优化报告 · 生成于 2026-09-14
+</footer>
+
+</div>
+</body>
+</html>

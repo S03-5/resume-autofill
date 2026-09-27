@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="aHFnL2GPGokIfGLRZIdDtT">
+<head data-page-node-id="rTsH4AgTgfCvZSiA0FyDfH">
+<meta charset="UTF-8" data-page-node-id="TbWuX2Pb5MZ2JROUCLRZfA">
+<title>简历助手 · 文件导入编码与乱码验证</title>
+<link rel="icon" href="data:," data-page-node-id="UBm0X8ecNzda7OlkXMRk9d">
+<style>
+  body { font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+         max-width: 900px; margin: 0 auto; padding: 20px 24px 60px; color: #1f2937; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  .sub { color: #6b7280; font-size: 12.5px; margin-bottom: 18px; }
+  #summary { font-size: 15px; font-weight: 700; padding: 10px 14px; border-radius: 8px;
+             background: #f3f4f6; margin: 14px 0; }
+  #summary.pass { background: #dcfce7; color: #15803d; }
+  #summary.fail { background: #fee2e2; color: #b91c1c; }
+  .group-title { margin: 18px 0 6px; font-weight: 700; font-size: 13.5px; color: #374151;
+                 border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+  .item { font-size: 13px; padding: 2px 0 2px 4px; }
+  .item .mk { font-weight: 700; margin-right: 6px; }
+  .item.pass .mk { color: #16a34a; }
+  .item.fail .mk { color: #dc2626; }
+  .item .dt { color: #9ca3af; font-size: 12px; margin-left: 6px; }
+  .note { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 8px 12px;
+          font-size: 12.5px; color: #92400e; border-radius: 4px; margin: 10px 0 18px; }
+</style>
+</head>
+<body data-page-node-id="ZOk6cL9lAAp32yvYRV1WKp">
+<h1 data-page-node-id="ffBR4vVkFPbZwjlh0klieL">简历助手 · 文件导入编码与乱码验证</h1>
+<div class="sub" data-page-node-id="IXemheZPfI7qq7NJPrsapS">复现用户实测的「导入简历文件后输入框里全是乱码」，并锁死三条底线：编码要认准、格式看魔数、可疑文本一个字都不许填进框里。</div>
+<div class="note" data-page-node-id="vf3pxhSKruTh9SL7k26IDD">乱码根因：<code data-page-node-id="rqJKx5BGlzAAwsk8WZqF5G">FileReader.readAsText()</code> 不带编码参数时按 UTF-8 读，而 Windows 中文环境导出的 txt 多是 ANSI(GBK)。一个汉字会变成一两个 U+FFFD 替换字符，夹杂几个「ΰ」「ѧ」这样的怪字 —— 正是截图里那一屏。</div>
+
+<div id="summary" data-page-node-id="vSAArfOeef3EP2iCHlGrAM">正在跑…</div>
+<div id="list" data-page-node-id="nhAbH42xSujBDdYCUFs7NC"></div>
+
+<script src="../popup/fileparse.js"></script>
+<script>
+const results = [];
+const listEl = document.getElementById("list");
+const pageErrors = [];
+window.addEventListener("error", e => pageErrors.push("error: " + e.message));
+window.addEventListener("unhandledrejection", e => {
+  pageErrors.push("rejection: " + ((e.reason && e.reason.message) || e.reason));
+});
+
+function group(title) {
+  const g = document.createElement("div");
+  g.className = "group-title";
+  g.textContent = title;
+  listEl.appendChild(g);
+}
+
+function check(name, pass, detail) {
+  results.push(!!pass);
+  const div = document.createElement("div");
+  div.className = "item " + (pass ? "pass" : "fail");
+  const mk = document.createElement("span");
+  mk.className = "mk";
+  mk.textContent = pass ? "✓" : "✗";
+  const nm = document.createElement("span");
+  nm.textContent = name;
+  if (detail) {
+    const dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = "（" + detail + "）";
+    nm.appendChild(dt);
+  }
+  div.appendChild(mk);
+  div.appendChild(nm);
+  listEl.appendChild(div);
+}
+
+function updateSummary() {
+  const bad = results.filter(r => !r).length;
+  const el = document.getElementById("summary");
+  el.textContent = bad
+    ? "有 " + bad + " 项没过（共 " + results.length + " 项）"
+    : "全部通过 " + results.length + " / " + results.length;
+  el.className = bad ? "fail" : "pass";
+}
+
+// ---------- 夹具工具 ----------
+
+function hexBytes(hex) {
+  const clean = hex.replace(/[\s,]/g, "");
+  const out = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.substr(i * 2, 2), 16);
+  return out;
+}
+function strBytes(s) { return new TextEncoder().encode(s); }
+function concat() {
+  const arrs = Array.prototype.slice.call(arguments).map(a => (typeof a === "string" ? strBytes(a) : a));
+  const total = arrs.reduce((n, a) => n + a.length, 0);
+  const out = new Uint8Array(total);
+  let o = 0;
+  for (const a of arrs) { out.set(a, o); o += a.length; }
+  return out;
+}
+async function deflateBytes(bytes) {
+  const s = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate"));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+
+// 手搓一个最小 ZIP（stored，CRC 填 0 —— parseDocx 只读目录里的偏移和长度，不校验 CRC）
+function makeZip(entryName, body) {
+  const nameB = strBytes(entryName);
+  const dataB = strBytes(body || "<a/>");
+
+  const local = new Uint8Array(30 + nameB.length);
+  const lv = new DataView(local.buffer);
+  lv.setUint32(0, 0x04034b50, true);
+  lv.setUint16(4, 20, true); lv.setUint16(6, 0, true); lv.setUint16(8, 0, true);
+  lv.setUint16(10, 0, true); lv.setUint16(12, 0, true); lv.setUint32(14, 0, true);
+  lv.setUint32(18, dataB.length, true); lv.setUint32(22, dataB.length, true);
+  lv.setUint16(26, nameB.length, true); lv.setUint16(28, 0, true);
+  local.set(nameB, 30);
+
+  const cd = new Uint8Array(46 + nameB.length);
+  const cv = new DataView(cd.buffer);
+  cv.setUint32(0, 0x02014b50, true);
+  cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0, true);
+  cv.setUint16(10, 0, true); cv.setUint16(12, 0, true); cv.setUint16(14, 0, true);
+  cv.setUint32(16, 0, true);
+  cv.setUint32(20, dataB.length, true); cv.setUint32(24, dataB.length, true);
+  cv.setUint16(28, nameB.length, true); cv.setUint16(30, 0, true); cv.setUint16(32, 0, true);
+  cv.setUint16(34, 0, true); cv.setUint16(36, 0, true); cv.setUint32(38, 0, true);
+  cv.setUint32(42, 0, true);
+  cd.set(nameB, 46);
+
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+  ev.setUint16(8, 1, true); ev.setUint16(10, 1, true);
+  ev.setUint32(12, cd.length, true);
+  ev.setUint32(16, local.length + dataB.length, true);
+  ev.setUint16(20, 0, true);
+
+  return concat(local, dataB, cd, eocd);
+}
+
+// ---------- 夹具 ----------
+
+// 原始简历文本，以及它过一遍归一化之后该长什么样
+const RESUME_RAW = "姓名：张伟\n电话：13800000000\n教育背景\n长春理工大学 本科\n学士学位 全日制";
+const EXPECT = window.JIANLI_FILEPARSE.normalize(RESUME_RAW);
+
+// ANSI(GBK) 编码的同一份简历 —— 用户那份乱码文件就是这种
+const GBK_HEX =
+  "D0D5C3FBA3BAD5C5CEB0" + "0A" +
+  "B5E7BBB0A3BA3133383030303030303030" + "0A" +
+  "BDCCD3FDB1B3BEB0" + "0A" +
+  "B3A4B4BAC0EDB9A4B4F3D1A7" + "20" + "B1BEBFC6" + "0A" +
+  "D1A7CABFD1A7CEBB" + "20" + "C8ABC8D5D6C6" + "0A";
+const GBK = hexBytes(GBK_HEX);
+const UTF16LE_BOM = hexBytes(
+  "FFFED3590D541AFF205F1F4F0A003575DD8B1AFF31003300380030003000300030003000300030003000" +
+  "0A005965B280CC806F660A007F9525660674E55D2759665B20002C67D1790A00665BEB58665B4D4F20006851E56536520A00"
+);
+const UTF16LE_NOBOM = hexBytes(
+  "D3590D541AFF205F1F4F0A003575DD8B1AFF31003300380030003000300030003000300030003000" +
+  "0A005965B280CC806F660A007F9525660674E55D2759665B20002C67D1790A00665BEB58665B4D4F20006851E56536520A00"
+);
+const UTF8_BOM = hexBytes(
+  "EFBBBFE5A793E5908DEFBC9AE5BCA0E4BC9F" + "0A" +
+  "E794B5E8AF9DEFBC9A3133383030303030303030" + "0A" +
+  "E69599E882B2E8838CE699AF" + "0A" +
+  "E995BFE698A5E79086E5B7A5E5A4A7E5ADA6" + "20" + "E69CACE7A791" + "0A" +
+  "E5ADA6E5A3ABE5ADA6E4BD8D" + "20" + "E585A8E697A5E588B6" + "0A"
+);
+
+// 真实 zipfile 产出的 .docx（deflate 压缩 / stored 未压缩各一份）
+const DOCX_DEFLATE = hexBytes("504B03041400000008002FA02F5D24E2A896B40000004E01000011000000776F72642F646F63756D656E742E786D6CB3B1AFC8CD51284B2D2ACECCCFB35532D43350B2B7B329B74AC94F2ECD4DCD2B51004AE7155B95DB2A552881C493F2532A4174018828021125764F974F7E3AA1F7FD9E594FF72C78B267BE8D3E4810441681C90274F5CFA76C7DB17E2E50BDA1B185011410D4F46CEACC174D9B5E34F73C9BB99EA0E29753F73F9BB1F4F984B6A7DB973E5DB2FCE9DA650ACFE6AC79BE7C22419D40A54F17AF06924FF6F62A3C6D5DF16CFAD2A71DDBB068D38785853E22B0EC00504B010214001400000008002FA02F5D24E2A896B40000004E010000110000000000000000000000800100000000776F72642F646F63756D656E742E786D6C504B050600000000010001003F000000E30000000000");
+const DOCX_STORED = hexBytes("504B03041400000000002FA02F5D24E2A8964E0100004E01000011000000776F72642F646F63756D656E742E786D6C3C3F786D6C2076657273696F6E3D22312E30223F3E3C773A646F63756D656E7420786D6C6E733A773D2278223E3C773A626F64793E3C773A703E3C773A723E3C773A743EE5A793E5908DEFBC9AE5BCA0E4BC9F3C2F773A743E3C2F773A723E3C2F773A703E3C773A703E3C773A723E3C773A743EE794B5E8AF9DEFBC9A31333830303030303030303C2F773A743E3C2F773A723E3C2F773A703E3C773A703E3C773A723E3C773A743EE69599E882B2E8838CE699AF3C2F773A743E3C2F773A723E3C2F773A703E3C773A703E3C773A723E3C773A743EE995BFE698A5E79086E5B7A5E5A4A7E5ADA620E69CACE7A7913C2F773A743E3C2F773A723E3C2F773A703E3C773A703E3C773A723E3C773A743EE5ADA6E5A3ABE5ADA6E4BD8D20E585A8E697A5E588B63C2F773A743E3C2F773A723E3C2F773A703E3C2F773A626F64793E3C2F773A646F63756D656E743E504B010214001400000000002FA02F5D24E2A8964E0100004E010000110000000000000000000000800100000000776F72642F646F63756D656E742E786D6C504B050600000000010001003F0000007D0100000000");
+
+// 旧版 .doc：OLE 复合文档文件头
+const OLE = concat(hexBytes("D0CF11E0A1B11AE1"), strBytes("Word.Document.8"), new Uint8Array(400));
+
+// 没有 NUL、但控制字符一大堆的二进制（模拟改错扩展名的文件）
+const BINARY = (function () {
+  const a = new Uint8Array(600);
+  for (let i = 0; i < a.length; i++) a[i] = (i % 31) + 1;
+  return a;
+})();
+
+// 是 ZIP，但里面没有 word/document.xml
+const NOT_DOCX_ZIP = makeZip("xl/workbook.xml");
+
+// PDF：内容流里放 GBK 字节的字面量串。
+// 特意用整份简历而不是一句话：extract 对 PDF 有「少于 30 字判为没提出东西」的下限。
+const PDF_CONTENT = concat("BT /F1 12 Tf (", GBK, ") Tj ET\n");
+const PDF_RAW = concat("%PDF-1.4\n1 0 obj\n<< /Length ", strBytes(String(PDF_CONTENT.length)), " >>\nstream\n", PDF_CONTENT, "\nendstream\nendobj\n%%EOF\n");
+
+// PDF：文字用 <十六进制> 串写（中文 PDF 更常见的写法）
+const PDF_HEX_CONTENT = concat("BT /F1 12 Tf <", GBK_HEX, "> Tj ET\n");
+const PDF_HEX = concat("%PDF-1.4\n1 0 obj\n<< /Length ", strBytes(String(PDF_HEX_CONTENT.length)), " >>\nstream\n", PDF_HEX_CONTENT, "\nendstream\nendobj\n%%EOF\n");
+
+// PDF：文字存成了字形编号（嵌入式子集字体），解出来是一堆控制字符
+const PDF_CID_CONTENT = concat("BT /F1 12 Tf (", hexBytes("0001000200030004"), ") Tj ET\n");
+const PDF_CID = concat("%PDF-1.4\n1 0 obj\n<< /Length ", strBytes(String(PDF_CID_CONTENT.length)), " >>\nstream\n", PDF_CID_CONTENT, "\nendstream\nendobj\n%%EOF\n");
+
+// 纯符号文本：严格档会判死，宽松档不该误拦（用户自己粘贴的场景）
+const SYMBOLS = "★".repeat(60) + " ".repeat(5);
+
+// ---------- 开始断言 ----------
+
+(async function () {
+  const FP = window.JIANLI_FILEPARSE;
+
+  group("一 · 编码嗅探（核心回归：截图里那屏乱码）");
+  {
+    const gbk = await FP.extract(GBK, "简历.txt");
+    check("ANSI(GBK) 编码的 txt 被正确解码", gbk.ok && gbk.text === EXPECT,
+      gbk.ok ? "编码=" + gbk.encoding : gbk.message);
+    check("识别出的编码标为 GBK/GB18030", gbk.ok && /GB/i.test(gbk.encoding), gbk.ok ? gbk.encoding : "未识别");
+
+    const u8b = await FP.extract(UTF8_BOM, "简历.txt");
+    check("UTF-8 (带 BOM) 正确解码", u8b.ok && u8b.text === EXPECT, u8b.ok ? u8b.encoding : u8b.message);
+
+    const u16 = await FP.extract(UTF16LE_BOM, "简历.txt");
+    check("UTF-16LE (带 BOM) 正确解码", u16.ok && u16.text === EXPECT, u16.ok ? u16.encoding : u16.message);
+
+    const u16n = await FP.extract(UTF16LE_NOBOM, "简历.txt");
+    check("UTF-16LE（无 BOM）也能认出来", u16n.ok && u16n.text === EXPECT, u16n.ok ? u16n.encoding : u16n.message);
+
+    // 反向验证：如果没有编码嗅探，就会退化成下面这个结果
+    const wrongWay = new TextDecoder().decode(GBK);
+    check("对照：GBK 字节按 UTF-8 读出来的确实是乱码", wrongWay.indexOf("\uFFFD") >= 0,
+      "替换字符 " + (wrongWay.match(/\uFFFD/g) || []).length + " 个");
+    const badHealth = FP.textHealth(wrongWay);
+    check("乱码体检能判死这种「按 UTF-8 硬读」的结果", !badHealth.ok && badHealth.verdict === "garbage",
+      badHealth.reason.slice(0, 28));
+  }
+
+  group("二 · 格式嗅探（看魔数，不信扩展名）");
+  {
+    const ole = await FP.extract(OLE, "简历.doc");
+    check("旧版 .doc（OLE 二进制）明确报错，而不是塞进一屏乱码", !ole.ok && /\.doc/.test(ole.message),
+      ole.message.slice(0, 24));
+    check("被拦下的结果里不带任何 text 字段", ole.text === undefined);
+
+    const bin = await FP.extract(BINARY, "简历.txt");
+    check("二进制内容顶着 .txt 的名字 → 也拦下", !bin.ok, bin.kind + "：" + bin.message.slice(0, 20));
+
+    const renamed = await FP.extract(DOCX_DEFLATE, "简历.txt");
+    check("docx 内容改成 .txt 扩展名 → 仍按 docx 解析", renamed.ok && renamed.text.indexOf("姓名") >= 0,
+      renamed.ok ? renamed.encoding : renamed.message);
+  }
+
+  group("三 · docx 解析");
+  {
+    const d1 = await FP.extract(DOCX_DEFLATE, "简历.docx");
+    check("deflate 压缩的 docx 提取出中文", d1.ok && d1.text.indexOf("姓名：张伟") >= 0,
+      d1.ok ? d1.text.replace(/\n/g, " / ").slice(0, 32) : d1.message);
+
+    const d2 = await FP.extract(DOCX_STORED, "简历.docx");
+    check("stored 未压缩的 docx 提取出中文", d2.ok && d2.text.indexOf("长春理工大学") >= 0,
+      d2.ok ? "编码=" + d2.encoding : d2.message);
+
+    check("docx 的段落换行被保留（识别器靠换行切段落）",
+      d1.ok && d1.text.split("\n").length >= 5, d1.ok ? d1.text.split("\n").length + " 行" : "");
+
+    const z = await FP.extract(NOT_DOCX_ZIP, "表格.zip");
+    check("是压缩包但没有 Word 正文 → 明确报错", !z.ok && /Word 正文/.test(z.message), z.message.slice(0, 22));
+  }
+
+  group("四 · PDF 解析");
+  {
+    const p1 = await FP.extract(PDF_RAW, "简历.pdf");
+    check("未压缩流 + GBK 字面量串 → 整篇提取正确", p1.ok && p1.text === EXPECT,
+      p1.ok ? p1.text.replace(/\n/g, " / ").slice(0, 30) : p1.message.slice(0, 26));
+
+    const p2 = await FP.extract(PDF_HEX, "简历.pdf");
+    check("PDF 的 <十六进制> 文字串 → 整篇提取正确", p2.ok && p2.text === EXPECT,
+      p2.ok ? p2.text.replace(/\n/g, " / ").slice(0, 30) : p2.message.slice(0, 26));
+
+    const content = concat("BT /F1 12 Tf (", GBK, ") Tj ET\n");
+    const comp = await deflateBytes(content);
+    const PDF_FLATE = concat("%PDF-1.4\n1 0 obj\n<< /Length ", strBytes(String(comp.length)),
+      " /Filter /FlateDecode >>\nstream\n", comp, "\nendstream\nendobj\n%%EOF\n");
+    const p3 = await FP.extract(PDF_FLATE, "简历.pdf");
+    check("FlateDecode 压缩流（内容是二进制）→ 按字节偏移正确定位并解压",
+      p3.ok && p3.text === EXPECT,
+      p3.ok ? p3.text.replace(/\n/g, " / ").slice(0, 30) : p3.message.slice(0, 26));
+
+    const p4 = await FP.extract(PDF_CID, "简历.pdf");
+    check("PDF 用字形编号（子集字体）→ 拦下不填，并说明原因", !p4.ok && /PDF/.test(p4.message),
+      p4.message.slice(0, 26));
+  }
+
+  group("五 · 归一化与体检");
+  {
+    const n = FP.normalize("教育背景\n长春理工大学\n实习经历\n某某公司");
+    check("normalize 不再把换行压成空格", n.split("\n").length === 4, n.replace(/\n/g, " / "));
+    const n2 = FP.normalize("姓 名：张 伟");
+    check("normalize 仍会合并被拆散的汉字", n2.indexOf("姓名") >= 0 && n2.indexOf("张伟") >= 0, n2);
+
+    const good = FP.textHealth(EXPECT);
+    check("正常简历文本 → 体检通过", good.ok && good.verdict === "ok",
+      "可读比例 " + Math.round(good.ratio * 100) + "%");
+
+    const strictBad = FP.textHealth(SYMBOLS);
+    const loose = FP.textHealth(SYMBOLS, { lenient: true });
+    check("严格档（文件导入）会把满屏符号判死", !strictBad.ok, strictBad.reason.slice(0, 22));
+    check("宽松档（用户自己粘贴）不误拦符号文本", loose.ok, "可读比例 " + Math.round(loose.ratio * 100) + "%");
+  }
+
+  updateSummary();
+  if (pageErrors.length) {
+    group("页面报错");
+    pageErrors.slice(0, 6).forEach(e => check("页面报错：" + e, false));
+    updateSummary();
+  }
+  document.body.dataset.jianliDone = "1";
+})();
+</script>
+</body>
+</html>

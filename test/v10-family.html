@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>简历助手 · 家庭情况端到端验证</title>
+<style>
+  body { font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+         max-width: 900px; margin: 0 auto; padding: 20px 24px 60px; color: #1f2937; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  .sub { color: #6b7280; font-size: 12.5px; margin-bottom: 18px; }
+  #summary { font-size: 15px; font-weight: 700; padding: 10px 14px; border-radius: 8px;
+             background: #f3f4f6; margin: 14px 0; }
+  #summary.pass { background: #dcfce7; color: #15803d; }
+  #summary.fail { background: #fee2e2; color: #b91c1c; }
+  .group-title { margin: 18px 0 6px; font-weight: 700; font-size: 13.5px; color: #374151;
+                 border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+  .item { font-size: 13px; padding: 2px 0 2px 4px; }
+  .item .mk { font-weight: 700; margin-right: 6px; }
+  .item.pass .mk { color: #16a34a; }
+  .item.fail .mk { color: #dc2626; }
+  .item .dt { color: #9ca3af; font-size: 12px; margin-left: 6px; }
+  form { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; background: #fafafa; }
+  form h2 { font-size: 14px; margin: 0 0 10px; color: #4b5563; }
+  .section { border-top: 1px dashed #d1d5db; margin-top: 12px; padding-top: 10px; }
+  .section h3 { font-size: 16px; margin: 0 0 10px; color: #111827; font-weight: 700; }
+  .fm { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .fm > label { width: 110px; color: #4b5563; font-size: 13px; }
+  .fm input { flex: 1; padding: 5px 9px; border: 1px solid #d1d5db; border-radius: 6px;
+              font-size: 13px; background: #fff; }
+  .note { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; font-size: 12.5px;
+          padding: 8px 12px; border-radius: 8px; margin: 12px 0; }
+  .tip { color: #6b7280; font-size: 12.5px; margin: 6px 0; }
+</style>
+</head>
+<body>
+<h1>简历助手 · 家庭情况端到端验证</h1>
+<div class="sub">
+  复刻实测截图里的「家庭情况」区块：姓名 / 与本人关系 / 工作单位 / 年龄，<b>以及页面并不存在的「添加」按钮</b>。
+  同一页里还放着你自己那一栏「姓名」「手机号」——两家人的「姓名」标签一模一样，这一页专门验证它们不会互相串。
+</div>
+
+<form id="mockForm" autocomplete="off">
+  <h2>模拟招聘网站的报名表</h2>
+
+  <div class="fm"><label>姓名</label><input id="selfName" name="selfName"></div>
+  <div class="fm"><label>手机号</label><input id="selfPhone" name="selfPhone"></div>
+  <div class="fm"><label>紧急联系人</label><input id="emgName" name="emgName"></div>
+  <div class="fm"><label>紧急联系电话</label><input id="emgPhone" name="emgPhone"></div>
+
+  <!-- 干扰源 1：真实站点里常见的提示语，含「添加」二字且很短 -->
+  <div class="tip" id="addTipInside">如需添加更多成员请联系 HR</div>
+
+  <div class="section" id="familySection">
+    <h3>家庭情况</h3>
+    <div class="fm"><label>姓名</label><input id="famName" name="famName"></div>
+    <div class="fm"><label>与本人关系</label><input id="famRelation" name="famRelation"></div>
+    <div class="fm"><label>工作单位</label><input id="famCompany" name="famCompany"></div>
+    <div class="fm"><label>年龄</label><input id="famAge" name="famAge"></div>
+    <div class="fm"><label>联系电话</label><input id="famPhone" name="famPhone"></div>
+  </div>
+</form>
+
+<!-- 干扰源 2：同样的提示语，但落在表单外面（离「家庭情况」区块很远） -->
+<div class="tip" id="addTipOutside">添加更多成员请联系 HR</div>
+
+<div class="note">
+  这一页<b>故意不提供任何「添加」按钮</b>（真实报名表就是这样，家庭情况只有一组、写死不能增行）。
+  改动前这种区块会被整块放弃，一个字都不填。
+</div>
+
+<div id="list"></div>
+<div id="summary">正在运行…</div>
+
+<script>
+// ============================================================
+// 1. 简历数据与 chrome API 模拟
+// ============================================================
+const RESUME = {
+  name: "张三",
+  phone: "13900000002",
+  emergency_contact: "李四",
+  emergency_phone: "13900000001"
+};
+
+// 家庭情况是「经历块」，数据走 blocks 通道（字段名与本人的同名，靠 exclusive 标记隔离）
+const BLOCKS = {
+  education: [],
+  internship: [],
+  project: [],
+  work: [],
+  family: [
+    { name: "李四", relation: "父子", company: "无", age: "50", phone: "13900000001" }
+  ]
+};
+
+const MOCK = {
+  settings: {
+    autoFill: false,
+    skipFilled: true,
+    showHud: true,
+    deepFill: false,
+    autoAttach: false,
+    useMemory: false,       // 记忆会掩盖匹配逻辑，这里关掉
+    inferPosition: false,   // 岗位推断与本次验证无关
+    ledgerPrompt: false,
+    navAutoFill: false,
+    hotkey: "command"
+  },
+  resumeData: RESUME,
+  blocks: BLOCKS,
+  attachment: null,
+  customFields: [],
+  hudPos: null
+};
+
+const storageListeners = [];
+const messageListeners = [];
+
+function pickKeys(keys) {
+  const out = {};
+  if (!keys) return Object.assign({}, MOCK);
+  if (typeof keys === "string") { out[keys] = MOCK[keys]; return out; }
+  if (Array.isArray(keys)) { keys.forEach(k => { out[k] = MOCK[k]; }); return out; }
+  Object.keys(keys).forEach(k => { out[k] = (MOCK[k] === undefined) ? keys[k] : MOCK[k]; });
+  return out;
+}
+
+window.chrome = {
+  runtime: {
+    getManifest: () => ({ version: "2.4.0-test" }),
+    onMessage: { addListener: fn => messageListeners.push(fn) },
+    sendMessage: () => {}
+  },
+  storage: {
+    local: {
+      get: keys => Promise.resolve(pickKeys(keys)),
+      set: (obj, cb) => {
+        Object.assign(MOCK, obj);
+        if (typeof cb === "function") cb();
+        const changes = {};
+        Object.keys(obj).forEach(k => { changes[k] = { newValue: obj[k] }; });
+        storageListeners.forEach(fn => { try { fn(changes, "local"); } catch (e) { /* ignore */ } });
+      }
+    },
+    onChanged: { addListener: fn => storageListeners.push(fn) }
+  }
+};
+</script>
+
+<script src="../content/lexicon.js"></script>
+<script src="../content/matcher.js"></script>
+<script src="../content/sites.js"></script>
+<script src="../content/widgets.js"></script>
+<script src="../content/blocks.js"></script>
+<script src="../content/hud.js"></script>
+<script src="../content/content.js"></script>
+
+<script>
+// ============================================================
+// 2. 断言框架
+// ============================================================
+const results = [];
+const listEl = document.getElementById("list");
+
+const pageErrors = [];
+window.addEventListener("error", e => pageErrors.push("error: " + e.message));
+window.addEventListener("unhandledrejection", e => {
+  pageErrors.push("rejection: " + ((e.reason && e.reason.message) || e.reason));
+});
+
+function group(title) {
+  const g = document.createElement("div");
+  g.className = "group-title";
+  g.textContent = title;
+  listEl.appendChild(g);
+}
+
+function check(name, pass, detail) {
+  results.push(!!pass);
+  const div = document.createElement("div");
+  div.className = "item " + (pass ? "pass" : "fail");
+  const mk = document.createElement("span");
+  mk.className = "mk";
+  mk.textContent = pass ? "✓" : "✗";
+  const nm = document.createElement("span");
+  nm.textContent = name;
+  if (detail) {
+    const dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = "（" + detail + "）";
+    nm.appendChild(dt);
+  }
+  div.appendChild(mk);
+  div.appendChild(nm);
+  listEl.appendChild(div);
+}
+
+function updateSummary() {
+  const bad = results.filter(r => !r).length;
+  const el = document.getElementById("summary");
+  el.textContent = bad
+    ? "有 " + bad + " 项没过（共 " + results.length + " 项）"
+    : "全部通过 " + results.length + " / " + results.length;
+  el.className = bad ? "fail" : "pass";
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function send(msg) {
+  return new Promise(resolve => {
+    let settled = false;
+    const done = r => { if (!settled) { settled = true; resolve(r); } };
+    for (const fn of messageListeners) {
+      try { fn(msg, {}, done); } catch (e) { /* 单个监听器异常不影响其他 */ }
+    }
+    setTimeout(() => done({ ok: false, reason: "内容脚本没有响应" }), 10000);
+  });
+}
+
+function val(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : "(无此元素)";
+}
+
+// ============================================================
+// 3. 测试
+// ============================================================
+(async function run() {
+ try {
+  await sleep(300);
+
+  // ---- 前置条件：这一页确实没有「添加」按钮 ----
+  group("A. 前置条件：页面只有一组写死的固定表单，没有增行按钮");
+  const realAddBtn = Array.from(document.querySelectorAll("button, a, [role='button']"))
+    .filter(el => /(添加|新增)/.test((el.textContent || "").trim()));
+  check("页面上没有任何可点的增行按钮", realAddBtn.length === 0,
+    realAddBtn.length ? "找到：" + realAddBtn.map(e => e.textContent.trim()).join(" / ") : "确认为 0");
+  check("页面上有 2 段含「添加」字样的短提示文字（真实站点常见的干扰源）",
+    document.querySelectorAll(".tip").length === 2,
+    "实际 " + document.querySelectorAll(".tip").length + " 段 —— 它们绝不能被当成增行按钮");
+
+  const res = await send({ type: "HUD_FILL" });
+  await sleep(300);
+
+  group("B. 你本人的信息：照常填对");
+  check("填写接口返回成功", !!res && res.ok === true,
+    res ? JSON.stringify(res.reason || "") : "无响应");
+  check("本人姓名 = 张三", val("selfName") === "张三",
+    "实际：" + JSON.stringify(val("selfName")));
+  check("本人手机号 = 13900000002", val("selfPhone") === "13900000002",
+    "实际：" + JSON.stringify(val("selfPhone")));
+  check("紧急联系人 = 李四", val("emgName") === "李四",
+    "实际：" + JSON.stringify(val("emgName")));
+  check("紧急联系电话 = 13900000001", val("emgPhone") === "13900000001",
+    "实际：" + JSON.stringify(val("emgPhone")));
+
+  group("C. 家庭情况：没有「添加」按钮也能定位并逐项填对");
+  check("家庭成员姓名 = 李四", val("famName") === "李四",
+    "实际：" + JSON.stringify(val("famName")));
+  check("与本人关系 = 父子", val("famRelation") === "父子",
+    "实际：" + JSON.stringify(val("famRelation")));
+  check("工作单位 = 无", val("famCompany") === "无",
+    "实际：" + JSON.stringify(val("famCompany")));
+  check("年龄 = 50", val("famAge") === "50",
+    "实际：" + JSON.stringify(val("famAge")));
+  check("家庭成员联系电话 = 13900000001", val("famPhone") === "13900000001",
+    "实际：" + JSON.stringify(val("famPhone")));
+
+  group("D. 同名红线：两个「姓名」「电话」绝不能串");
+  check("家庭成员的姓名没有被填成你自己的名字",
+    val("famName") !== "张三",
+    "实际：" + JSON.stringify(val("famName")));
+  check("你自己的姓名没有被填成父亲的",
+    val("selfName") !== "李四",
+    "实际：" + JSON.stringify(val("selfName")));
+  check("家庭成员的电话不是你的手机号",
+    val("famPhone") !== "13900000002",
+    "实际：" + JSON.stringify(val("famPhone")));
+  check("你本人的手机号没有被填成父亲的",
+    val("selfPhone") !== "13900000001",
+    "实际：" + JSON.stringify(val("selfPhone")));
+
+  group("E. 战报里要能看到「家庭情况」这一条");
+  const blk = (res && res.results || []).find(r => r.key === "block_family");
+  check("战报含 block_family 条目", !!blk,
+    blk ? JSON.stringify(blk.label) : "没找到，实际条目：" +
+      ((res && res.results || []).map(r => r.key).join(",") || "无"));
+  check("该条目标记为填写成功", !!blk && blk.ok === true,
+    blk ? "ok=" + blk.ok + " reason=" + JSON.stringify(blk.reason || "") : "无此条目");
+  check("条目上注明填了 1 条", !!blk && /1\s*条/.test(blk.label || ""),
+    blk ? JSON.stringify(blk.label) : "无此条目");
+
+  group("F. 撤销要能全部还原");
+  await send({ type: "UNDO_FILL" });
+  await sleep(300);
+  check("撤销后家庭成员姓名清空", val("famName") === "",
+    "实际：" + JSON.stringify(val("famName")));
+  check("撤销后家庭情况其他项清空",
+    val("famRelation") === "" && val("famAge") === "" && val("famPhone") === "",
+    "关系=" + JSON.stringify(val("famRelation")) + " 年龄=" + JSON.stringify(val("famAge")));
+  check("撤销后你自己的姓名也清空", val("selfName") === "",
+    "实际：" + JSON.stringify(val("selfName")));
+
+  group("G. 防线的真正价值：块里没有数据时，宁可空着也不能填错");
+  // 模拟「你还没填过家庭情况资料」——此时没有任何东西能修正被填错的值
+  const savedFamily = MOCK.blocks.family;
+  MOCK.blocks.family = [];
+
+  await send({ type: "UNDO_FILL" });
+  await sleep(200);
+  await send({ type: "HUD_FILL" });
+  await sleep(300);
+  check("有独占标记：父亲的姓名框留空，绝不被填成你自己的名字",
+    val("famName") === "",
+    "实际：" + JSON.stringify(val("famName")));
+  check("有独占标记：你的姓名照常填上", val("selfName") === "张三",
+    "实际：" + JSON.stringify(val("selfName")));
+
+  group("H. 反向对照：拿掉独占标记，同一场景立刻串味");
+  window.JIANLI_BLOCK_DEFS.family.exclusive = false;
+  await send({ type: "UNDO_FILL" });
+  await sleep(200);
+  await send({ type: "HUD_FILL" });
+  await sleep(300);
+  check("去掉标记后：父亲的姓名框确实被本人的姓名占据",
+    val("famName") === "张三",
+    "实际：" + JSON.stringify(val("famName")) + "（这就是不加防护的后果）");
+  window.JIANLI_BLOCK_DEFS.family.exclusive = true;
+
+  group("I. 恢复家庭情况数据后，一切回到正确");
+  MOCK.blocks.family = savedFamily;
+  await send({ type: "UNDO_FILL" });
+  await sleep(200);
+  await send({ type: "HUD_FILL" });
+  await sleep(300);
+  check("家庭成员姓名 = 李四", val("famName") === "李四",
+    "实际：" + JSON.stringify(val("famName")));
+  check("本人姓名 = 张三", val("selfName") === "张三",
+    "实际：" + JSON.stringify(val("selfName")));
+
+  group("J. 页面没有报错");
+  check("整个测试过程没有未捕获的页面错误",
+    pageErrors.length === 0, pageErrors.join(" | ") || "无");
+ } catch (e) {
+  check("测试脚本本身没有抛异常", false, e && e.message);
+ } finally {
+  updateSummary();
+  document.body.dataset.jianliDone = "1";
+ }
+})();
+</script>
+</body>
+</html>

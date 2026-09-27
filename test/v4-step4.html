@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:,">
+<title>第四步验证：多套简历方案 / 岗位推断</title>
+<style>
+  body {
+    margin: 0; padding: 16px 18px 140px;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f8fafc; color: #0f172a; font-size: 14px;
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { color: #64748b; font-size: 12.5px; margin-bottom: 12px; }
+  #summary {
+    position: sticky; top: 0; z-index: 10;
+    padding: 11px 14px; border-radius: 9px; font-weight: 700; font-size: 14px;
+    background: #e2e8f0; margin-bottom: 12px;
+  }
+  #summary.pass { background: #dcfce7; color: #15803d; }
+  #summary.fail { background: #fee2e2; color: #b91c1c; }
+  .item {
+    display: flex; gap: 9px; align-items: flex-start;
+    padding: 6px 10px; border-radius: 7px; margin-bottom: 3px;
+    background: #fff; border: 1px solid #e2e8f0; font-size: 13px;
+  }
+  .item .mk { flex: 0 0 auto; font-weight: 700; }
+  .item.pass .mk { color: #16a34a; }
+  .item.fail .mk { color: #dc2626; }
+  .item.fail { background: #fef2f2; border-color: #fecaca; }
+  .item .dt { color: #64748b; font-size: 12px; margin-left: 4px; }
+  .group-title { margin: 14px 0 6px; font-size: 12px; font-weight: 700; color: #94a3b8; }
+  form {
+    margin-top: 20px; padding: 14px 16px; background: #fff;
+    border: 1px solid #e2e8f0; border-radius: 10px; max-width: 520px;
+  }
+  form h2 { font-size: 13px; margin: 0 0 10px; color: #334155; }
+  .fm { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .fm label { flex: 0 0 96px; font-size: 12.5px; color: #475569; }
+  .fm input {
+    flex: 1; padding: 6px 9px; border: 1px solid #cbd5e1; border-radius: 6px;
+    font-size: 13px; font-family: inherit;
+  }
+  #raw {
+    margin-top: 14px; padding: 8px; background: #0f172a; color: #a7f3d0;
+    font-family: Consolas, monospace; font-size: 11px; line-height: 1.4;
+    max-height: 220px; overflow: auto; white-space: pre-wrap; border-radius: 8px;
+  }
+</style>
+</head>
+<body>
+<h1>第四步验证：多套简历方案 + 岗位推断</h1>
+<div class="sub">
+  本页 mock 扩展 API、加载真实的 profiles.js / infer.js / 内容脚本，验证：老数据迁移成「默认方案」、
+  方案切换时三个镜像 key 跟着换、附件按方案独立且去重、增删改与导入导出、岗位与城市推断、
+  推断结果覆盖意向字段并出现在战报里。
+</div>
+<div id="summary">正在运行…</div>
+<div id="list"></div>
+
+<form id="mockForm" autocomplete="off">
+  <h2>模拟招聘网站的简历表单</h2>
+  <div class="fm"><label>姓名</label><input id="candName" name="candidateName" placeholder="请输入姓名"></div>
+  <div class="fm"><label>手机号码</label><input name="mobile" placeholder="请输入手机号"></div>
+  <div class="fm"><label>电子邮箱</label><input name="mail" placeholder="请输入邮箱"></div>
+  <div class="fm"><label>期望职位</label><input id="expectPos" placeholder="请输入期望职位"></div>
+  <div class="fm"><label>期望城市</label><input id="cityBox" placeholder="请输入期望城市"></div>
+</form>
+
+<pre id="raw"></pre>
+
+<script>
+// ============================================================
+// 1. mock 扩展 API（必须先于其它脚本执行）
+// ============================================================
+const RESUME = {
+  name: "测试同学",
+  phone: "13800000000",
+  email: "test@example.com",
+  position: "机械结构工程师",
+  city: "上海"
+};
+
+// 老版本用户的存储：只有 resumeData / blocks / attachment，没有 profiles
+const MOCK = {
+  settings: {
+    autoFill: false,
+    skipFilled: true,
+    showHud: true,
+    useMemory: true,
+    inferPosition: true,
+    deepFill: false,
+    autoAttach: false,
+    hotkey: "command"
+  },
+  resumeData: {
+    name: "老用户",
+    phone: "13900000000",
+    email: "old@example.com",
+    position: "机械结构工程师",
+    city: "上海"
+  },
+  blocks: { education: [{ school: "某某大学", major: "机械工程" }] },
+  attachment: {
+    name: "老简历.pdf",
+    type: "application/pdf",
+    size: 2048,
+    dataUrl: "data:application/pdf;base64,OLDOLDFILE"
+  },
+  customFields: [],
+  hudPos: null,
+  siteMaps: undefined
+};
+
+const storageListeners = [];
+const messageListeners = [];
+
+function pickKeys(keys) {
+  const out = {};
+  if (!keys) return Object.assign({}, MOCK);
+  if (typeof keys === "string") { out[keys] = MOCK[keys]; return out; }
+  if (Array.isArray(keys)) { keys.forEach(k => { out[k] = MOCK[k]; }); return out; }
+  Object.keys(keys).forEach(k => { out[k] = (MOCK[k] === undefined) ? keys[k] : MOCK[k]; });
+  return out;
+}
+
+window.chrome = {
+  runtime: {
+    getManifest: () => ({ version: "2.0.0-test" }),
+    onMessage: { addListener: fn => messageListeners.push(fn) },
+    sendMessage: () => {}
+  },
+  storage: {
+    local: {
+      // 同时支持回调式（profiles.js 用）和 Promise 式（memory.js 用）
+      get: (keys, cb) => {
+        const res = pickKeys(keys);
+        if (typeof cb === "function") { setTimeout(() => cb(res), 0); return undefined; }
+        return Promise.resolve(res);
+      },
+      set: (obj, cb) => {
+        Object.assign(MOCK, obj);
+        if (typeof cb === "function") setTimeout(() => cb(), 0);
+        const changes = {};
+        Object.keys(obj).forEach(k => { changes[k] = { newValue: obj[k] }; });
+        setTimeout(() => storageListeners.forEach(fn => { try { fn(changes, "local"); } catch (e) { /* ignore */ } }), 0);
+        return Promise.resolve();
+      }
+    },
+    onChanged: { addListener: fn => storageListeners.push(fn) }
+  }
+};
+</script>
+
+<script src="../profiles.js"></script>
+<script src="../content/lexicon.js"></script>
+<script src="../content/matcher.js"></script>
+<script src="../content/sites.js"></script>
+<script src="../content/widgets.js"></script>
+<script src="../content/blocks.js"></script>
+<script src="../content/memory.js"></script>
+<script src="../content/infer.js"></script>
+<script src="../content/hud.js"></script>
+<script src="../content/content.js"></script>
+
+<script>
+// ============================================================
+// 2. 断言框架
+// ============================================================
+const PROFILES = window.JIANLI_PROFILES;
+const INFER = window.JIANLI_INFER;
+const results = [];
+const listEl = document.getElementById("list");
+let groupEl = null;
+
+const pageErrors = [];
+window.addEventListener("error", e => pageErrors.push("error: " + e.message));
+window.addEventListener("unhandledrejection", e => {
+  pageErrors.push("rejection: " + ((e.reason && e.reason.message) || e.reason));
+});
+window.__jianliTestErrors = pageErrors;
+
+function group(title) {
+  groupEl = document.createElement("div");
+  groupEl.className = "group-title";
+  groupEl.textContent = title;
+  listEl.appendChild(groupEl);
+}
+
+function check(name, pass, detail) {
+  results.push(!!pass);
+  const div = document.createElement("div");
+  div.className = "item " + (pass ? "pass" : "fail");
+  const mk = document.createElement("span");
+  mk.className = "mk";
+  mk.textContent = pass ? "✓" : "✗";
+  const nm = document.createElement("span");
+  nm.textContent = name;
+  if (detail) {
+    const dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = "（" + detail + "）";
+    nm.appendChild(dt);
+  }
+  div.appendChild(mk);
+  div.appendChild(nm);
+  (groupEl || listEl).appendChild(div);
+  updateSummary();
+}
+
+function updateSummary() {
+  const s = document.getElementById("summary");
+  const bad = results.filter(r => !r).length;
+  if (bad === 0) {
+    s.className = "pass";
+    s.textContent = "✓ 全部通过 " + results.length + " / " + results.length;
+  } else {
+    s.className = "fail";
+    s.textContent = "✗ 存在失败项 " + bad + " / " + results.length + "（红色那几行）";
+  }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const el = id => document.getElementById(id);
+const raw = x => { document.getElementById("raw").textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2); };
+
+function send(msg) {
+  return new Promise(resolve => {
+    let settled = false;
+    const done = r => { if (!settled) { settled = true; resolve(r); } };
+    for (const fn of messageListeners) {
+      try { fn(msg, {}, done); } catch (e) { /* ignore */ }
+    }
+    setTimeout(() => done({ ok: false, reason: "内容脚本没有响应" }), 10000);
+  });
+}
+
+function setSettings(patch) {
+  MOCK.settings = Object.assign({}, MOCK.settings, patch);
+  storageListeners.forEach(fn => fn({ settings: { newValue: MOCK.settings } }, "local"));
+}
+
+function attachCount() {
+  return Object.keys(MOCK.attachments || {}).length;
+}
+
+// ============================================================
+// 3. 测试主流程
+// ============================================================
+(async function () {
+ try {
+  if (!PROFILES) { check("profiles.js 已加载", false, "window.JIANLI_PROFILES 不存在"); return; }
+  if (!INFER) { check("infer.js 已加载", false, "window.JIANLI_INFER 不存在"); return; }
+
+  // ---------- A. 方案存储 ----------
+  group("A. 老数据迁移");
+
+  check("迁移前：存储里没有 profiles（模拟老版本用户）",
+    MOCK.profiles === undefined && MOCK.activeProfileId === undefined,
+    "profiles=" + JSON.stringify(MOCK.profiles));
+
+  await PROFILES.ensureLoaded();
+  const l1 = PROFILES.list();
+
+  check("老数据被原样包成 1 套「默认方案」",
+    l1.length === 1 && l1[0].name === "默认方案",
+    "套数=" + l1.length + "，名字=" + (l1[0] && l1[0].name));
+
+  const g1 = PROFILES.get(PROFILES.getActiveId());
+  check("迁移后字段数据完整保留",
+    g1.data.name === "老用户" && g1.data.position === "机械结构工程师",
+    "name=" + g1.data.name + " position=" + g1.data.position);
+
+  check("迁移后经历块完整保留",
+    Array.isArray(g1.blocks.education) && g1.blocks.education.length === 1,
+    "education=" + JSON.stringify(g1.blocks.education || null));
+
+  check("旧附件进了附件库，方案里只留一个引用",
+    g1.attachment && g1.attachment.name === "老简历.pdf" && attachCount() === 1,
+    "附件库 " + attachCount() + " 条，方案引用=" + JSON.stringify(l1[0].hasAttachment));
+
+  check("镜像 resumeData 保持原值（升级不丢数据）",
+    MOCK.resumeData.name === "老用户" && MOCK.attachment && MOCK.attachment.name === "老简历.pdf",
+    "镜像 name=" + MOCK.resumeData.name);
+
+  check("方案列表带字段数 / 经历数 / 附件信息",
+    l1[0].fieldCount >= 4 && l1[0].blockCount === 1 && l1[0].hasAttachment === true,
+    "fieldCount=" + l1[0].fieldCount + " blockCount=" + l1[0].blockCount);
+
+  const again = await PROFILES.ensureLoaded();
+  check("重复调用 ensureLoaded 不会重复建方案",
+    PROFILES.count() === 1 && again.profiles.length === 1,
+    "套数=" + PROFILES.count());
+
+  // ---------- B. 新建 / 切换 / 镜像 ----------
+  group("B. 新建方案与镜像切换");
+
+  const oldId = PROFILES.getActiveId();
+  await PROFILES.create("嵌入式岗", { activate: true });
+
+  check("新建方案后套数 +1，并自动切到新方案",
+    PROFILES.count() === 2 && PROFILES.list().find(p => p.active).name === "嵌入式岗",
+    "套数=" + PROFILES.count() + "，当前=" + PROFILES.list().find(p => p.active).name);
+
+  check("切到空白新方案后，镜像里不会残留上一套的内容",
+    (MOCK.resumeData.name || "") === "" && (MOCK.attachment === null || MOCK.attachment === undefined),
+    "镜像 name=" + JSON.stringify(MOCK.resumeData.name) + " attachment=" + JSON.stringify(MOCK.attachment));
+
+  await PROFILES.syncMirror({
+    resumeData: { name: "嵌入式版姓名", position: "嵌入式软件工程师", city: "深圳" },
+    blocks: { education: [] },
+    attachment: null
+  });
+
+  const newId = PROFILES.getActiveId();
+  check("编辑后的内容会被收回当前方案",
+    PROFILES.get(newId).data.name === "嵌入式版姓名",
+    "当前方案 name=" + PROFILES.get(newId).data.name);
+
+  check("改动不会污染另一套方案",
+    PROFILES.get(oldId).data.name === "老用户",
+    "老方案 name=" + PROFILES.get(oldId).data.name);
+
+  await PROFILES.setActive(oldId);
+  check("切回旧方案：字段镜像跟着换回来",
+    MOCK.resumeData.name === "老用户" && MOCK.resumeData.position === "机械结构工程师",
+    "镜像 name=" + MOCK.resumeData.name);
+
+  check("切回旧方案：附件镜像也跟着换回来",
+    !!MOCK.attachment && MOCK.attachment.name === "老简历.pdf",
+    "附件=" + JSON.stringify(MOCK.attachment && MOCK.attachment.name));
+
+  // ---------- C. 复制 / 重命名 / 删除 ----------
+  group("C. 复制 / 重命名 / 删除");
+
+  const dup = await PROFILES.duplicate(oldId, "机械岗副本");
+  check("复制方案：字段内容一致",
+    dup.ok && PROFILES.get(dup.id).data.name === "老用户",
+    dup.ok ? ("新方案 name=" + PROFILES.get(dup.id).data.name) : dup.reason);
+
+  check("复制方案：附件共用同一份，不占双倍存储",
+    attachCount() === 1 && !!PROFILES.get(dup.id).attachment,
+    "附件库 " + attachCount() + " 条");
+
+  const rn = await PROFILES.rename(dup.id, "机械结构岗");
+  check("重命名生效",
+    rn.ok && PROFILES.list().find(p => p.id === dup.id).name === "机械结构岗",
+    "新名字=" + (rn.name || rn.reason));
+
+  const rnEmpty = await PROFILES.rename(dup.id, "   ");
+  check("重命名拒绝空名字", rnEmpty.ok === false, "理由=" + rnEmpty.reason);
+
+  const rmOld = await PROFILES.remove(oldId);
+  check("删除方案后套数 -1",
+    rmOld.ok === true && PROFILES.count() === 2,
+    "套数=" + PROFILES.count());
+
+  check("被删除的方案确实不在了",
+    PROFILES.list().every(p => p.id !== oldId),
+    PROFILES.list().map(p => p.name).join(" / "));
+
+  check("附件被别的方案引用着，不会被误删",
+    attachCount() === 1,
+    "附件库 " + attachCount() + " 条");
+
+  // 现在没有方案引用附件了，删掉最后一个引用者，附件应当被回收
+  await PROFILES.remove(dup.id);
+  check("最后一个引用者被删除后，附件从库里回收（不占着存储）",
+    attachCount() === 0,
+    "附件库 " + attachCount() + " 条");
+
+  const lastOne = PROFILES.list()[0];
+  const rmLast = await PROFILES.remove(lastOne.id);
+  check("只剩一套方案时不允许再删",
+    rmLast.ok === false && PROFILES.count() === 1,
+    "理由=" + rmLast.reason);
+
+  // ---------- D. 导出 / 导入 / 恢复默认 ----------
+  group("D. 导出 / 导入 / 恢复默认");
+
+  await PROFILES.syncMirror({
+    resumeData: { name: "方案A的人", position: "算法工程师" },
+    blocks: { education: [{ school: "A 大学" }] },
+    attachment: { name: "a.pdf", type: "application/pdf", size: 100, dataUrl: "data:application/pdf;base64,AAAA" }
+  });
+  await PROFILES.create("方案B", { activate: true });
+  await PROFILES.syncMirror({ resumeData: { name: "方案B的人" }, blocks: {}, attachment: null });
+
+  const dump = PROFILES.exportAll();
+  check("导出包含全部方案，并记住当前用的是第几套",
+    dump.profiles.length === 2 && dump.activeIndex === 1,
+    "套数=" + dump.profiles.length + " activeIndex=" + dump.activeIndex);
+
+  check("导出带了附件内容（换电脑才用得了）",
+    !!(dump.profiles[0].attachment && dump.profiles[0].attachment.dataUrl),
+    "第一套附件=" + JSON.stringify(dump.profiles[0].attachment && dump.profiles[0].attachment.name));
+
+  await PROFILES.resetAll({ resumeData: { name: "" }, blocks: {} });
+  check("恢复默认：只剩一套空白方案，附件库清空",
+    PROFILES.count() === 1 && attachCount() === 0 && !PROFILES.get(PROFILES.getActiveId()).attachment,
+    "套数=" + PROFILES.count() + " 附件=" + attachCount());
+
+  const imp = await PROFILES.importAll(dump);
+  check("导入恢复方案套数",
+    imp.ok === true && PROFILES.count() === 2,
+    imp.ok ? ("套数=" + PROFILES.count()) : imp.reason);
+
+  check("导入按 activeIndex 还原当前方案",
+    PROFILES.list().find(p => p.active).name === "方案B",
+    "当前=" + PROFILES.list().find(p => p.active).name);
+
+  check("导入恢复附件内容",
+    attachCount() === 1,
+    "附件库 " + attachCount() + " 条");
+
+  check("导入后镜像与当前方案一致",
+    MOCK.resumeData.name === "方案B的人",
+    "镜像 name=" + JSON.stringify(MOCK.resumeData.name));
+
+  // 收尾：留一套干净的方案给后面的填写测试用
+  await PROFILES.resetAll({ resumeData: {}, blocks: {} });
+
+  // ---------- E. 岗位与城市推断 ----------
+  group("E. 岗位 / 城市推断");
+
+  const POS = t => INFER.inferPositionFromTitle(t);
+  const cases = [
+    ["嵌入式软件工程师 - 某某科技有限公司 - BOSS直聘", "嵌入式软件工程师"],
+    ["【急聘】算法工程师（北京）| 智联招聘", "算法工程师"],
+    ["「嵌入式软件工程师招聘」_某某科技招聘 - BOSS直聘", "嵌入式软件工程师"],
+    ["前端开发工程师 / 上海 / 某某网络科技", "前端开发工程师"],
+    ["C/C++开发工程师 - 深圳 - 某某科技", "C/C++开发工程师"],
+    ["Java开发工程师_北京_某某信息", "Java开发工程师"],
+    ["招聘专员 - 某某人力资源有限公司", "招聘专员"],
+    ["HRBP（校招） - 某某集团", "HRBP"]
+  ];
+  let posBad = [];
+  for (const [title, want] of cases) {
+    const got = POS(title);
+    if (got !== want) posBad.push(title + " → " + (got || "空") + "（期望 " + want + "）");
+  }
+  check("常见招聘页标题都能挑出正确的岗位名（8 个用例）",
+    posBad.length === 0,
+    posBad.length ? posBad.join("；") : "8/8");
+
+  const emptyCases = [
+    "某某科技有限公司",
+    "BOSS直聘",
+    "搜索结果 - 猎聘",
+    "BOSS直聘 - 找工作",
+    "某某大学 - 校园招聘",
+    "个人中心 - 某某招聘网"
+  ];
+  const wrongPicks = emptyCases.filter(t => POS(t) !== "");
+  check("站点名 / 公司名 / 栏目名不会被当成岗位名（6 个用例）",
+    wrongPicks.length === 0,
+    wrongPicks.length ? ("误判：" + wrongPicks.map(t => t + " → " + POS(t)).join("；")) : "6/6 都正确留空");
+
+  check("营销括号（【急聘】）被剥掉，不会混进岗位名",
+    POS("【急聘】前端开发工程师【高薪】") === "前端开发工程师",
+    "实际=" + POS("【急聘】前端开发工程师【高薪】"));
+
+  check("C/C++ 这种带斜杠的岗位名不会被切开",
+    POS("C/C++开发工程师 - 北京 - 某某科技") === "C/C++开发工程师",
+    "实际=" + POS("C/C++开发工程师 - 北京 - 某某科技"));
+
+  check("URL 里的城市拼音能识别（/beijing/）",
+    INFER.cityFromUrl("https://www.zhipin.com/beijing/job/123") === "北京",
+    "实际=" + INFER.cityFromUrl("https://www.zhipin.com/beijing/job/123"));
+
+  check("URL 里的城市拼音能识别（city-shenzhen）",
+    INFER.cityFromUrl("https://www.liepin.com/city-shenzhen/job/1") === "深圳",
+    "实际=" + INFER.cityFromUrl("https://www.liepin.com/city-shenzhen/job/1"));
+
+  check("城市可以从标题里读出来",
+    INFER.findCity("算法工程师（深圳）") === "深圳",
+    "实际=" + INFER.findCity("算法工程师（深圳）"));
+
+  check("短英文词按单词边界匹配：commodity 不会被当成 IT 岗",
+    INFER.scoreSegment("commodity") < INFER.scoreSegment("IT 工程师"),
+    "commodity=" + INFER.scoreSegment("commodity") + " IT 工程师=" + INFER.scoreSegment("IT 工程师"));
+
+  const sig = INFER.inferFromSignals({
+    title: "某某集团招聘首页",
+    jobElText: "嵌入式软件工程师",
+    url: "https://www.zhipin.com/shenzhen/job/9"
+  });
+  check("岗位名优先取页面元素，标题兜底",
+    sig.position === "嵌入式软件工程师" && sig.sourcePos === "job-el",
+    "position=" + sig.position + " 来源=" + sig.sourcePos);
+
+  check("城市走 URL 拼音兜底",
+    sig.city === "深圳",
+    "city=" + sig.city);
+
+  // ---------- F. 推断接入填写 ----------
+  group("F. 推断接入填写流程");
+
+  const originalTitle = document.title;
+  document.title = "嵌入式软件工程师（北京） - 某某科技有限公司 - BOSS直聘";
+
+  MOCK.resumeData = Object.assign({}, RESUME, { position: "机械结构工程师", city: "上海" });
+  setSettings({ inferPosition: true, skipFilled: true });
+  el("candName").value = "";
+  el("expectPos").value = "";
+  el("cityBox").value = "";
+  await sleep(60);
+
+  let res = await send({ type: "HUD_FILL" });
+  await sleep(220);
+  raw({ filled: res.filled, inferred: res.inferred, results: res.results });
+
+  check("填写时「期望职位」被推断值覆盖（原来填的是机械结构工程师）",
+    el("expectPos").value === "嵌入式软件工程师",
+    "实际=" + JSON.stringify(el("expectPos").value));
+
+  check("填写时「期望城市」也被覆盖（上海 → 北京）",
+    el("cityBox").value === "北京",
+    "实际=" + JSON.stringify(el("cityBox").value));
+
+  check("返回结果里带上了这次调整的说明",
+    !!(res.inferred && res.inferred.applied && res.inferred.applied.position === "嵌入式软件工程师"),
+    JSON.stringify(res.inferred && res.inferred.applied));
+
+  check("推断说明里带了依据（原始标题）",
+    !!(res.inferred && /BOSS直聘/.test(res.inferred.raw || "")),
+    (res.inferred && res.inferred.raw) || "无");
+
+  const sr = document.getElementById("jianli-hud-host");
+  const report = sr && sr.shadowRoot && sr.shadowRoot.querySelector(".report");
+  const infBox = report && report.querySelector(".rp-infer");
+  check("战报浮层里列出了这次岗位调整",
+    !!(infBox && /期望职位/.test(infBox.textContent)),
+    infBox ? infBox.textContent.replace(/\s+/g, " ").slice(0, 70) : "没找到 .rp-infer");
+
+  // 撤销：被覆盖的意向字段要能回到填写前的样子
+  const undone = await send({ type: "UNDO_FILL" });
+  await sleep(150);
+  check("撤销后「期望职位」恢复成填写前的空值",
+    !!(undone && undone.ok) && el("expectPos").value === "" && el("cityBox").value === "",
+    undone && undone.ok ? ("恢复了 " + undone.restored + " 个框，现在=" + JSON.stringify(el("expectPos").value)) : undone.reason);
+
+  // 关掉开关后不能再动用户自己填的意向
+  el("expectPos").value = "";
+  el("cityBox").value = "";
+  setSettings({ inferPosition: false });
+  await sleep(60);
+  res = await send({ type: "HUD_FILL" });
+  await sleep(200);
+  raw({ filled: res.filled, inferred: res.inferred, results: res.results });
+
+  check("关掉「按当前岗位调整」后，填的是我自己的期望职位",
+    el("expectPos").value === "机械结构工程师" && !res.inferred,
+    "实际=" + JSON.stringify(el("expectPos").value) + "，inferred=" + JSON.stringify(res.inferred));
+
+  // 推断不出来时保持原值
+  await send({ type: "UNDO_FILL" });
+  await sleep(120);
+  document.title = "个人中心 - 某某招聘网";
+  el("expectPos").value = "";
+  el("cityBox").value = "";
+  setSettings({ inferPosition: true });
+  await sleep(60);
+  res = await send({ type: "HUD_FILL" });
+  await sleep(200);
+
+  check("推断不出来时保持原值（不乱改我的意向）",
+    el("expectPos").value === "机械结构工程师" && !res.inferred,
+    "实际=" + JSON.stringify(el("expectPos").value) + "，inferred=" + JSON.stringify(res.inferred));
+
+  document.title = originalTitle;
+
+  // ---------- G. 前三步功能回归 ----------
+  group("G. 前几步功能回归");
+
+  check("悬浮球仍在页面上",
+    !!document.getElementById("jianli-hud-host"),
+    "没有找到悬浮球宿主节点");
+
+  await send({ type: "UNDO_FILL" });
+  await sleep(120);
+  el("candName").value = "";
+  const res2 = await send({ type: "HUD_FILL" });
+  await sleep(200);
+  check("常规字段照常填写",
+    el("candName").value === "测试同学",
+    "candName=" + JSON.stringify(el("candName").value));
+
+  const undone2 = await send({ type: "UNDO_FILL" });
+  await sleep(120);
+  check("撤销仍然可用",
+    !!(undone2 && undone2.ok) && el("candName").value === "",
+    undone2 && undone2.ok ? ("恢复了 " + undone2.restored + " 个框") : (undone2 && undone2.reason));
+
+  const status = await send({ type: "GET_STATUS" });
+  check("弹窗状态接口带上了推断信息",
+    !!(status && "inferred" in status),
+    "inferred=" + JSON.stringify(status && status.inferred));
+
+  check("测试过程中没有未捕获的页面错误",
+    pageErrors.length === 0,
+    pageErrors.slice(0, 2).join(" | "));
+
+ } catch (e) {
+  check("测试脚本没有中途崩溃", false, e && e.message ? e.message : String(e));
+ }
+ document.body.dataset.jianliDone = "1";
+ updateSummary();
+})();
+</script>
+</body>
+</html>

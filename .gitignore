@@ -3,6 +3,12 @@ dist-firefox/
 *.zip
 *.log
 
+# 个人真实简历数据（含身份证号、手机号等敏感信息，绝不入库）
+user-defaults.js
+
+# 测试运行产物
+test/.last-run.jsonl
+
 # 系统文件
 .DS_Store
 Thumbs.db

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="8RBzIHPZTm5AM06ymGENZp">
+<head data-page-node-id="MZjlMp1t3QdHXkXSUdYuXO">
+<meta charset="UTF-8" data-page-node-id="lSQOLVSM9ksUBZMIvFwkdk">
+<title>简历助手 · 选项匹配端到端验证</title>
+<style>
+  body { font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+         max-width: 860px; margin: 0 auto; padding: 20px 24px 60px; color: #1f2937; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  .sub { color: #6b7280; font-size: 12.5px; margin-bottom: 18px; }
+  #summary { font-size: 15px; font-weight: 700; padding: 10px 14px; border-radius: 8px;
+             background: #f3f4f6; margin: 14px 0; }
+  #summary.pass { background: #dcfce7; color: #15803d; }
+  #summary.fail { background: #fee2e2; color: #b91c1c; }
+  .group-title { margin: 18px 0 6px; font-weight: 700; font-size: 13.5px; color: #374151;
+                 border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+  .item { font-size: 13px; padding: 2px 0 2px 4px; }
+  .item .mk { font-weight: 700; margin-right: 6px; }
+  .item.pass .mk { color: #16a34a; }
+  .item.fail .mk { color: #dc2626; }
+  .item .dt { color: #9ca3af; font-size: 12px; margin-left: 6px; }
+  form { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; background: #fafafa; }
+  form h2 { font-size: 14px; margin: 0 0 10px; color: #4b5563; }
+  .fm { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .fm > label { width: 110px; color: #4b5563; font-size: 13px; }
+  select { padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px; min-width: 180px; }
+</style>
+</head>
+<body data-page-node-id="xsghQeH2KZCvKI1Oe9ZSDT">
+<h1 data-page-node-id="tzBN3OlDoHeCqRhGCYTWUg">简历助手 · 选项匹配端到端验证</h1>
+<div class="sub" data-page-node-id="iToHpt88XiDA79wje4dwIi">
+  下面这 5 个下拉的选项，都是招聘网站上真实出现过的写法。
+  跑一遍填写，看插件有没有把简历值「认出来」——认不出来的一律留空，绝不瞎选。
+</div>
+
+<form id="mockForm" autocomplete="off" data-page-node-id="tfrXB37dn8J0pWSi6AxVD5">
+  <h2 data-page-node-id="Qum6fShSYUBcFcWieMxftu">模拟招聘网站的简历表单</h2>
+  <div class="fm" data-page-node-id="aT71cBQfw8z6cyQsH0Pqu0"><label data-page-node-id="qfzvbhK10NFAsdmt1ZPJbY">最高学历</label>
+    <select name="degree" id="selDegree" data-page-node-id="mF021stPp4bHPdtkIDMw5A">
+      <option value="" data-page-node-id="vaWhIaUqVtAGghLWtLUVDK">请选择</option>
+      <option data-page-node-id="2JRHBiC2NAfSz8bB6M0KwC">高中</option>
+      <option data-page-node-id="ymvnvgl60Bj5q7SqCwN7fJ">大专</option>
+      <option data-page-node-id="NYhm3NTjnl2hCkUzOJAGvT">全日制本科</option>
+      <option data-page-node-id="2nccCsvLs7cEWcq8Nzb4yy">非全日制本科</option>
+      <option data-page-node-id="GdjwDWAnIMIGg659wNlMtG">硕士研究生</option>
+      <option data-page-node-id="XrrUC9lb9cuDmtyqMfGZ9m">博士研究生</option>
+    </select>
+  </div>
+  <div class="fm" data-page-node-id="3buDaQf3M5xKrNEcuKGG66"><label data-page-node-id="39pJOoy2M78DE6WKth0J5H">英语等级</label>
+    <select name="englishLevel" id="selEnglish" data-page-node-id="Presvq5JsYtrplZN3zVjYS">
+      <option value="" data-page-node-id="wJ8okQ9RNHpIrLEJiUZFpG">请选择</option>
+      <option data-page-node-id="Gq47lMGiXwATq6975VPbfp">英语四级</option>
+      <option data-page-node-id="hakBfOzdjsdXuCzKEqL493">英语六级</option>
+      <option data-page-node-id="Ck5SnZwJwfGFCdKC85661O">无</option>
+    </select>
+  </div>
+  <div class="fm"><label>英语水平</label>
+    <select name="englishLevel2" id="selEnglishLevel">
+      <option value="">请选择</option>
+      <option>四级</option>
+      <option>六级</option>
+      <option>无</option>
+    </select>
+  </div>
+  <div class="fm"><label>英语能力</label>
+    <select name="englishAbility" id="selEnglishAbility">
+      <option value="">请选择</option>
+      <option>四级</option>
+      <option>六级</option>
+      <option>无</option>
+    </select>
+  </div>
+  <div class="fm"><label>语言能力</label>
+    <select name="languageAbility" id="selLanguageAbility">
+      <option value="">请选择</option>
+      <option>四级</option>
+      <option>六级</option>
+      <option>无</option>
+    </select>
+  </div>
+  <div class="fm" data-page-node-id="zj7N1cWMfeKaZ6yBoAZ0xZ"><label data-page-node-id="dHETjxNMqFmaHcBq2lgGVt">民族</label>
+    <select name="ethnicity" id="selNation" data-page-node-id="TsfziIQxavdfQAblfRaECZ">
+      <option value="" data-page-node-id="CTssZb3cc3aX2T6JZsXrEl">请选择</option>
+      <option data-page-node-id="1tJh6FVnnPerwzhg95wAyV">汉族</option>
+      <option data-page-node-id="B6nhbSGhS6lAtW1WNaHht4">回族</option>
+      <option data-page-node-id="HBgfuyTYiueWY4ZD8nhUMN">满族</option>
+    </select>
+  </div>
+  <div class="fm" data-page-node-id="lGdZqMr4VHcpkc6nueN4kq"><label data-page-node-id="4zBODuVVMkBppZ0RSBD8zX">政治面貌</label>
+    <select name="politicalStatus" id="selPolitical" data-page-node-id="R4L15BtPBgFWyXKtL3BA0G">
+      <option value="" data-page-node-id="BYQdHjrEUv1dlF1w77n691">请选择</option>
+      <option data-page-node-id="F3j7Tb0nfRubSH6bGecmUV">群众</option>
+      <option data-page-node-id="lJXWBWl6GXuIdh5W0TDJUW">中共党员</option>
+      <option data-page-node-id="DPTJiVoJKWwei90d58zE3b">中共预备党员</option>
+    </select>
+  </div>
+  <div class="fm" data-page-node-id="u6K5LBfNqImCDhdspd5NPP"><label data-page-node-id="WAJ19sOLB4knt5lLBPwqed">专业排名</label>
+    <select name="gradeRanking" id="selRank" data-page-node-id="XxpsCWijX2G0ZK6cVl6hSX">
+      <option value="" data-page-node-id="BBFz5Ka5yaVLhQ2NF2J1HY">请选择</option>
+      <option data-page-node-id="q922qtlRxXSxLJsDlv6DZk">前5%</option>
+      <option data-page-node-id="8SGJGresNnBi0YnWLnmepz">前10%</option>
+      <option data-page-node-id="gkeG8UHTTks9W65MdHmPAo">前50%</option>
+    </select>
+  </div>
+</form>
+
+<div id="list" data-page-node-id="MhcCIbPcz8aJw5zXebNmSf"></div>
+<div id="summary" data-page-node-id="kgG9B6HyjJAfmd1uCnP8Oi">正在运行…</div>
+
+<script>
+// ============================================================
+// 1. 简历数据与 chrome API 模拟
+// ============================================================
+const RESUME = {
+  name: "测试同学",
+  degree: "本科",                    // 页面只有「全日制本科 / 非全日制本科」
+  english_level: "英语四级（CET-4）", // 页面只有「英语四级」
+  nationality: "汉",                 // 页面只有「汉族」
+  political: "共青团员",             // 页面一个都没有 → 必须留空
+  grade_ranking: "前25%"             // 页面只有前5%/前10%/前50% → 必须留空
+};
+
+const MOCK = {
+  settings: {
+    autoFill: false,
+    skipFilled: true,
+    showHud: true,
+    deepFill: false,        // 本页全是原生下拉，不需要深度填充
+    autoAttach: false,
+    useMemory: false,       // 记忆会掩盖匹配逻辑，这里关掉
+    inferPosition: false,   // 岗位推断会改期望职位，与本次验证无关
+    ledgerPrompt: false,
+    navAutoFill: false,
+    hotkey: "command"
+  },
+  resumeData: RESUME,
+  blocks: undefined,
+  attachment: null,
+  customFields: [],
+  hudPos: null
+};
+
+const storageListeners = [];
+const messageListeners = [];
+
+function pickKeys(keys) {
+  const out = {};
+  if (!keys) return Object.assign({}, MOCK);
+  if (typeof keys === "string") { out[keys] = MOCK[keys]; return out; }
+  if (Array.isArray(keys)) { keys.forEach(k => { out[k] = MOCK[k]; }); return out; }
+  Object.keys(keys).forEach(k => { out[k] = (MOCK[k] === undefined) ? keys[k] : MOCK[k]; });
+  return out;
+}
+
+window.chrome = {
+  runtime: {
+    getManifest: () => ({ version: "2.0.0-test" }),
+    onMessage: { addListener: fn => messageListeners.push(fn) },
+    sendMessage: () => {}
+  },
+  storage: {
+    local: {
+      get: keys => Promise.resolve(pickKeys(keys)),
+      set: (obj, cb) => {
+        Object.assign(MOCK, obj);
+        if (typeof cb === "function") cb();
+        const changes = {};
+        Object.keys(obj).forEach(k => { changes[k] = { newValue: obj[k] }; });
+        storageListeners.forEach(fn => { try { fn(changes, "local"); } catch (e) { /* ignore */ } });
+      }
+    },
+    onChanged: { addListener: fn => storageListeners.push(fn) }
+  }
+};
+</script>
+
+<script src="../content/lexicon.js"></script>
+<script src="../content/matcher.js"></script>
+<script src="../content/sites.js"></script>
+<script src="../content/widgets.js"></script>
+<script src="../content/blocks.js"></script>
+<script src="../content/hud.js"></script>
+<script src="../content/content.js"></script>
+
+<script>
+// ============================================================
+// 2. 断言框架
+// ============================================================
+const results = [];
+const listEl = document.getElementById("list");
+let groupEl = null;
+
+const pageErrors = [];
+window.addEventListener("error", e => pageErrors.push("error: " + e.message));
+window.addEventListener("unhandledrejection", e => {
+  pageErrors.push("rejection: " + ((e.reason && e.reason.message) || e.reason));
+});
+
+function group(title) {
+  groupEl = document.createElement("div");
+  groupEl.className = "group-title";
+  groupEl.textContent = title;
+  listEl.appendChild(groupEl);
+}
+
+function check(name, pass, detail) {
+  results.push(!!pass);
+  const div = document.createElement("div");
+  div.className = "item " + (pass ? "pass" : "fail");
+  const mk = document.createElement("span");
+  mk.className = "mk";
+  mk.textContent = pass ? "✓" : "✗";
+  const nm = document.createElement("span");
+  nm.textContent = name;
+  if (detail) {
+    const dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = "（" + detail + "）";
+    nm.appendChild(dt);
+  }
+  div.appendChild(mk);
+  div.appendChild(nm);
+  listEl.appendChild(div);
+}
+
+function updateSummary() {
+  const bad = results.filter(r => !r).length;
+  const el = document.getElementById("summary");
+  el.textContent = bad
+    ? "有 " + bad + " 项没过（共 " + results.length + " 项）"
+    : "全部通过 " + results.length + " / " + results.length;
+  el.className = bad ? "fail" : "pass";
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function send(msg) {
+  return new Promise(resolve => {
+    let settled = false;
+    const done = r => { if (!settled) { settled = true; resolve(r); } };
+    for (const fn of messageListeners) {
+      try { fn(msg, {}, done); } catch (e) { /* 单个监听器异常不影响其他 */ }
+    }
+    setTimeout(() => done({ ok: false, reason: "内容脚本没有响应" }), 10000);
+  });
+}
+
+// 下拉当前选中的文字（value 为空说明没选中任何一项）
+function selText(id) {
+  const el = document.getElementById(id);
+  if (!el || el.selectedIndex < 0) return "";
+  return (el.options[el.selectedIndex].textContent || "").trim();
+}
+function selValue(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : "(无此元素)";
+}
+function hudShadow() {
+  const host = document.getElementById("jianli-hud-host");
+  return host && host.shadowRoot ? host.shadowRoot : null;
+}
+function reportText() {
+  const s = hudShadow();
+  const r = s ? s.querySelector(".report") : null;
+  return r ? r.textContent.replace(/\s+/g, " ") : "";
+}
+
+// ============================================================
+// 3. 测试
+// ============================================================
+(async function run() {
+ try {
+  await sleep(300);
+
+  // ---------- A. 同义写法要能认出来 ----------
+  group("A. 简历值与页面选项写法不同，也要认出来");
+
+  const res = await send({ type: "HUD_FILL" });
+  await sleep(200);
+
+  check("填写接口返回成功", !!res && res.ok === true, res ? JSON.stringify(res.reason || "") : "无响应");
+
+  check("学历：简历「本科」→ 选中「全日制本科」",
+    selText("selDegree") === "全日制本科", "实际：" + JSON.stringify(selText("selDegree")));
+
+  // 红线：非全日制本科 与 全日制本科 字面高度重合但语义相反，绝不能选中
+  check("学历：绝不选中语义相反的「非全日制本科」",
+    selText("selDegree") !== "非全日制本科", "实际：" + JSON.stringify(selText("selDegree")));
+
+  check("英语：简历「英语四级（CET-4）」→ 选中「英语四级」",
+    selText("selEnglish") === "英语四级", "实际：" + JSON.stringify(selText("selEnglish")));
+
+  // 拓宽识别：标签写成英语水平/英语能力/语言能力，也应识别成「英语等级」并选中「四级」
+  check("英语(拓宽)：标签「英语水平」→ 选中短选项「四级」",
+    selText("selEnglishLevel") === "四级", "实际：" + JSON.stringify(selText("selEnglishLevel")));
+  check("英语(拓宽)：标签「英语能力」→ 选中短选项「四级」",
+    selText("selEnglishAbility") === "四级", "实际：" + JSON.stringify(selText("selEnglishAbility")));
+  check("英语(拓宽)：标签「语言能力」→ 选中短选项「四级」",
+    selText("selLanguageAbility") === "四级", "实际：" + JSON.stringify(selText("selLanguageAbility")));
+
+  check("民族：简历「汉」→ 选中「汉族」",
+    selText("selNation") === "汉族", "实际：" + JSON.stringify(selText("selNation")));
+
+  // ---------- B. 匹配不上必须留空 ----------
+  group("B. 找不到安全匹配的，一律留空（宁可不填，不能填错）");
+
+  check("政治面貌：简历「共青团员」页面上没有 → 留空",
+    selValue("selPolitical") === "", "实际：" + JSON.stringify(selText("selPolitical")));
+  check("专业排名：简历「前25%」页面上没有 → 留空",
+    selValue("selRank") === "", "实际：" + JSON.stringify(selText("selRank")));
+
+  // ---------- C. 战报要把选项摊开给用户 ----------
+  group("C. 战报里要能看到「这个下拉有哪些选项」");
+
+  const pending = (res && res.pending) || [];
+  const pol = pending.find(p => p.label && p.label.indexOf("政治") >= 0);
+  check("政治面貌出现在「插件没填上」清单里", !!pol, pol ? pol.reason : "清单里没有");
+  check("那一条带上了该下拉的全部选项",
+    !!pol && Array.isArray(pol.options) && pol.options.indexOf("中共党员") >= 0 && pol.options.indexOf("群众") >= 0,
+    pol && pol.options ? pol.options.join(" / ") : "没有 options");
+  check("失败原因是「没有匹配」而不是「面板没打开」（能一眼分辨是匹配问题还是面板问题）",
+    !!pol && /没有匹配/.test(pol.reason), pol ? pol.reason : "");
+
+  // 战报浮层里确实渲染出了选项行
+  const sr = hudShadow();
+  const optRow = sr ? sr.querySelector(".report .rp-opts") : null;
+  check("战报浮层里确实渲染出了「选项：」那一行",
+    !!optRow, optRow ? optRow.textContent.slice(0, 50) : "没找到 .rp-opts");
+  check("战报文字里包含下拉的实际选项",
+    /中共党员/.test(reportText()), reportText().slice(0, 80));
+
+  // ---------- D. 撤销后能回到原样 ----------
+  group("D. 撤销要把这次填的还原回去");
+
+  await send({ type: "UNDO_FILL" });
+  await sleep(150);
+  check("撤销后学历下拉回到「请选择」", selValue("selDegree") === "", "实际：" + JSON.stringify(selText("selDegree")));
+  check("撤销后英语下拉回到「请选择」", selValue("selEnglish") === "", "实际：" + JSON.stringify(selText("selEnglish")));
+
+  // ---------- E. 同一份简历数据在任何控件里判定一致 ----------
+  group("E. 同一份数据在任何控件里判定一致");
+
+  const M = window.JIANLI_MATCHER;
+  const W = window.JIANLI_WIDGETS;
+  check("匹配器已加载", !!M, M ? "" : "JIANLI_MATCHER 不存在");
+  check("组件层已接上匹配器", !!W && typeof W.util.findBestOption === "function",
+    "widgets.js 的 findBestOption 不在");
+  if (M) {
+    check("阈值生效：60 分以上才填（弱包含 40 分被挡掉）",
+      M.pick("本科", ["成人本科"], "degree") === null, "成人本科（2/4=0.5）不该被选中");
+    check("否定词判死：非全日制本科 得 0 分",
+      M.score("本科", "非全日制本科", "degree").score === 0,
+      "得分 " + M.score("本科", "非全日制本科", "degree").score);
+  }
+
+  check("整个测试过程没有未捕获的页面错误",
+    pageErrors.length === 0, pageErrors.length ? pageErrors.join("；") : "无");
+
+ } catch (e) {
+  check("测试脚本没有中途崩溃", false, e && e.message ? e.message : String(e));
+ }
+ document.body.dataset.jianliDone = "1";
+ updateSummary();
+})();
+</script>
+</body>
+</html>

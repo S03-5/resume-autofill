@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="VqQZjOWPGLbxTKA6xT82Ko">
+<head data-page-node-id="ru7HkNhGspl4MR5J0kvzCc">
+<meta charset="UTF-8" data-page-node-id="HAIlAcM49lqbf0bcICfWvz">
+<link rel="icon" href="data:," data-page-node-id="nmeOBxUHNCDJjeFRQORf5m">
+<title>HUD 显隐验证：面板能不能真的关掉</title>
+<style>
+  body {
+    margin: 0; padding: 16px 18px 140px;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f8fafc; color: #0f172a; font-size: 14px;
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { color: #64748b; font-size: 12.5px; margin-bottom: 12px; }
+  #summary {
+    position: sticky; top: 0; z-index: 10;
+    padding: 11px 14px; border-radius: 9px; font-weight: 700; font-size: 14px;
+    background: #e2e8f0; margin-bottom: 12px;
+  }
+  #summary.pass { background: #dcfce7; color: #15803d; }
+  #summary.fail { background: #fee2e2; color: #b91c1c; }
+  .item {
+    display: flex; gap: 9px; align-items: flex-start;
+    padding: 6px 10px; border-radius: 7px; margin-bottom: 3px;
+    background: #fff; border: 1px solid #e2e8f0; font-size: 13px;
+  }
+  .item .mk { flex: 0 0 auto; font-weight: 700; }
+  .item.pass .mk { color: #16a34a; }
+  .item.fail .mk { color: #dc2626; }
+  .item.fail { background: #fef2f2; border-color: #fecaca; }
+  .item .dt { color: #64748b; font-size: 12px; margin-left: 4px; }
+  .group-title { margin: 14px 0 6px; font-size: 12px; font-weight: 700; color: #94a3b8; }
+  #raw {
+    margin-top: 14px; padding: 8px; background: #0f172a; color: #a7f3d0;
+    font-family: Consolas, monospace; font-size: 11px; line-height: 1.4;
+    max-height: 260px; overflow: auto; white-space: pre-wrap; border-radius: 8px;
+  }
+</style>
+</head>
+<body data-page-node-id="1M3X3Dyhg3ERA5gsXm6WdA">
+<h1 data-page-node-id="yJuwDQU2pCPYi4F3b32gST">HUD 显隐验证：面板能不能真的关掉</h1>
+<div class="sub" data-page-node-id="qWfCgtEMslFIARFPExt3Dm">
+  本页专测一个曾经踩过的坑：HUD 的样式里 <code data-page-node-id="UKRKc8PaoD1lVE0gxBTfpu">.report / .modal / .pick-bar</code> 都声明了
+  <code data-page-node-id="fHFP5hFRXnMKKCT1WGCqBR">display:flex</code>，而浏览器默认的 <code data-page-node-id="bsZ2aB3vIHmebEBbkC9o9u">[hidden]{display:none}</code> 属于 UA 样式表，
+  会被作者样式无条件盖掉 —— 于是 <code data-page-node-id="b2xAZ2M5umxqCXJId9hL8v">el.hidden = true</code> 完全不生效，
+  表现为「点右上角的叉关不掉」「点选面板弹出来收不回去」。
+  <b data-page-node-id="AoEecZkCeDoCTapDMXz7qk">断言一律看 <code data-page-node-id="lgVAmyRAyoumPs0kVowHZ1">getComputedStyle</code> 的实际渲染结果，不看 hidden 属性</b>（旧测试就是只看属性才漏掉的）。
+</div>
+<div id="summary" data-page-node-id="EjHYcAGRnfhllN6le9TFkG">正在运行…</div>
+<div id="list" data-page-node-id="jWsf1OPZR7hTZm8nGdc7n7"></div>
+<pre id="raw" data-page-node-id="tFwELDIljfSg6MCPEsVyaf"></pre>
+
+<script>
+// ============================================================
+// 1. mock 扩展 API（hud.js 只在保存悬浮球位置时用到 storage）
+// ============================================================
+window.chrome = {
+  storage: {
+    local: {
+      set: () => {},
+      get: (k, cb) => { if (cb) cb({}); }
+    }
+  },
+  runtime: { id: "test" }
+};
+</script>
+
+<script src="../content/hud.js"></script>
+
+<script>
+// ============================================================
+// 2. 断言框架
+// ============================================================
+const HUD = window.JIANLI_HUD;
+const results = [];
+const listEl = document.getElementById("list");
+let groupEl = null;
+
+const pageErrors = [];
+window.addEventListener("error", e => pageErrors.push("error: " + e.message));
+window.addEventListener("unhandledrejection", e => {
+  pageErrors.push("rejection: " + ((e.reason && e.reason.message) || e.reason));
+});
+
+function group(title) {
+  groupEl = document.createElement("div");
+  groupEl.className = "group-title";
+  groupEl.textContent = title;
+  listEl.appendChild(groupEl);
+}
+
+function check(name, pass, detail) {
+  results.push(!!pass);
+  const div = document.createElement("div");
+  div.className = "item " + (pass ? "pass" : "fail");
+  const mk = document.createElement("span");
+  mk.className = "mk";
+  mk.textContent = pass ? "✓" : "✗";
+  const nm = document.createElement("span");
+  nm.textContent = name;
+  if (detail) {
+    const dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = "（" + detail + "）";
+    nm.appendChild(dt);
+  }
+  div.appendChild(mk);
+  div.appendChild(nm);
+  listEl.appendChild(div);
+}
+
+function updateSummary() {
+  const bad = results.filter(r => !r).length;
+  const el = document.getElementById("summary");
+  el.textContent = bad
+    ? "有 " + bad + " 项没过（共 " + results.length + " 项）"
+    : "全部通过 " + results.length + " / " + results.length;
+  el.className = bad ? "fail" : "pass";
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ---------- 取 HUD 的 shadow 内部元素 ----------
+
+function hudShadow() {
+  const host = document.getElementById("jianli-hud-host");
+  return host && host.shadowRoot ? host.shadowRoot : null;
+}
+
+function sh(sel) {
+  const s = hudShadow();
+  return s ? s.querySelector(sel) : null;
+}
+
+// 关键：判断"用户到底看不看得见"，而不是"hidden 属性是不是 true"
+function visible(el) {
+  if (!el) return false;
+  const cs = getComputedStyle(el);
+  if (cs.display === "none") return false;
+  if (cs.visibility === "hidden") return false;
+  if (cs.opacity === "0") return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+}
+
+function disp(el) {
+  return el ? getComputedStyle(el).display : "(无此元素)";
+}
+
+// ============================================================
+// 3. 开跑
+// ============================================================
+
+(async function () {
+  try {
+    if (!HUD) throw new Error("hud.js 没有导出 window.JIANLI_HUD");
+
+    group("挂载与初始状态");
+
+    HUD.mount(true);
+    await sleep(120);
+
+    check("悬浮球已挂载到页面", HUD.isMounted() && !!sh(".ball"),
+      HUD.isMounted() ? "host 在页面上，球已创建" : "挂载失败");
+
+    // 这一组是本次修复的核心：所有「默认隐藏」的面板，必须真的不可见。
+    // 修复前 .report / .pick-bar / .picker / .collect 会因为 display:flex 而全部可见。
+    const idle = [
+      [".menu", "菜单"],
+      [".report", "战报浮层"],
+      [".pick-bar", "点选提示条"],
+      [".picker", "字段选择面板"],
+      [".collect", "已收集面板"],
+      [".prompt", "确认卡片"],
+      [".toast", "轻提示"]
+    ];
+    for (const [sel, name] of idle) {
+      const el = sh(sel);
+      check("初始状态下「" + name + "」不可见", !visible(el), "display=" + disp(el));
+    }
+
+    // 通用守卫：凡是带 hidden 属性的，computed display 必须是 none。
+    // 这样以后新增面板忘了写 [hidden] 兜底，或者自己写了 display:flex，这里会直接报出来。
+    const s = hudShadow();
+    const offenders = [];
+    for (const el of s.querySelectorAll("[hidden]")) {
+      if (getComputedStyle(el).display !== "none") {
+        offenders.push((el.className || el.tagName) + "(" + getComputedStyle(el).display + ")");
+      }
+    }
+    check("所有带 hidden 属性的元素都真的被隐藏（不只看属性）",
+      offenders.length === 0,
+      offenders.length ? ("没藏住的：" + offenders.join("、")) : "共检查 " + s.querySelectorAll("[hidden]").length + " 个");
+
+    group("战报浮层：右上角的叉要能关掉");
+
+    HUD.showReport({ adapter: "测试站点", filled: 3 }, {
+      pending: [{ label: "民族", reason: "下拉面板没打开" }],
+      unknown: [{ label: "必填项未填写" }, { label: "推荐码" }],
+      knownEmpty: []
+    });
+    await sleep(80);
+
+    check("调用 showReport 后战报可见", visible(sh(".report")), "display=" + disp(sh(".report")));
+    check("战报里有右上角的关闭按钮", !!sh(".report .rp-x"), sh(".report .rp-x") ? "找到 .rp-x" : "没找到");
+
+    // 真实点击（不是直接调 hideReport），复现用户的操作
+    sh(".report .rp-x").click();
+    await sleep(80);
+    check("点战报右上角的叉之后，战报真的从画面上消失",
+      !visible(sh(".report")), "display=" + disp(sh(".report")));
+
+    HUD.showReport({ adapter: null, filled: 1 }, { pending: [], unknown: [], knownEmpty: [] });
+    await sleep(60);
+    check("重新打开战报仍然可见", visible(sh(".report")), "display=" + disp(sh(".report")));
+    HUD.hideReport();
+    await sleep(60);
+    check("hideReport() 之后战报不可见", !visible(sh(".report")), "display=" + disp(sh(".report")));
+
+    group("战报：匹配不上一个下拉时，要把它的选项摊开给用户看");
+
+    HUD.showReport({ adapter: "测试站点", filled: 2 }, {
+      pending: [
+        {
+          label: "最高学历",
+          reason: "选项里没有匹配「本科」的项",
+          options: ["高中", "大专", "成人本科", "非全日制本科"]
+        },
+        { label: "民族", reason: "下拉面板没打开" }
+      ],
+      unknown: [], knownEmpty: []
+    });
+    await sleep(80);
+
+    const optBlocks = s.querySelectorAll(".report .rp-opts");
+    check("有选项的那一条多出一行「选项：」", optBlocks.length === 1, "找到 " + optBlocks.length + " 个");
+    const optText = optBlocks.length ? optBlocks[0].textContent : "";
+    check("选项行里列出了实际选项",
+      optText.indexOf("成人本科") >= 0 && optText.indexOf("非全日制本科") >= 0,
+      optText.replace(/\s+/g, " ").slice(0, 60));
+    check("选项行真的可见（不是被 display 盖住）",
+      optBlocks.length > 0 && visible(optBlocks[0]), disp(optBlocks[0]));
+    check("没选项可列的那一条不会凭空多出一行",
+      s.querySelectorAll(".report .rp-item").length === 2,
+      "条目数 " + s.querySelectorAll(".report .rp-item").length);
+
+    // 选项特别多时只列前 24 个，避免浮层被撑爆
+    const many = [];
+    for (let i = 1; i <= 40; i++) many.push("选项" + i);
+    HUD.showReport({ adapter: null, filled: 0 }, {
+      pending: [{ label: "字段A", reason: "匹配不上", options: many }],
+      unknown: [], knownEmpty: []
+    });
+    await sleep(80);
+    const longBlock = s.querySelector(".report .rp-opts");
+    const longText = longBlock ? longBlock.textContent : "";
+    check("选项超过 24 个时截断并提示总数",
+      longText.indexOf("选项24") >= 0 && longText.indexOf("选项25") < 0 && longText.indexOf("40 项") >= 0,
+      longText.replace(/\s+/g, " ").slice(-40));
+    check("截断时完整列表仍放在 title 里可悬浮查看",
+      !!longBlock && longBlock.title.indexOf("选项40") >= 0,
+      longBlock ? "title 长度 " + longBlock.title.length : "无");
+
+    HUD.hideReport();
+    await sleep(60);
+
+    group("点选流程：提示条与面板都要能收回去");
+
+    HUD.showPickBar("点选模式：把鼠标移到需要填的输入框上", { onCancel: () => {} });
+    await sleep(60);
+    check("点选提示条能显示出来", visible(sh(".pick-bar")), "display=" + disp(sh(".pick-bar")));
+    HUD.hidePickBar();
+    await sleep(60);
+    check("退出点选后提示条收起来了", !visible(sh(".pick-bar")), "display=" + disp(sh(".pick-bar")));
+
+    HUD.showFieldPicker({
+      title: "这个框对应简历里的哪个字段？",
+      sub: "选中后插件会记住",
+      groups: [
+        { title: "求职意向", items: [{ key: "position", label: "期望职位" }, { key: "city", label: "期望城市" }] },
+        { title: "基本信息", items: [{ key: "name", label: "姓名" }] }
+      ],
+      onCancel: () => {}
+    });
+    await sleep(60);
+    check("字段选择面板能弹出来", visible(sh(".picker")), "display=" + disp(sh(".picker")));
+    check("面板里列出了字段选项", !!sh(".picker .md-item"), sh(".picker .md-item") ? ("第一项：" + sh(".picker .md-item").textContent) : "没有选项");
+    check("面板有搜索框", !!sh(".picker .md-search input"), sh(".picker .md-search input") ? "找到搜索框" : "没找到");
+
+    HUD.closeModals();
+    await sleep(60);
+    check("closeModals() 之后字段选择面板真的收起（修复前这里关不掉，点选就没法继续）",
+      !visible(sh(".picker")), "display=" + disp(sh(".picker")));
+
+    // 再走一遍「点面板自己的关闭按钮」，这才是用户实际会点的东西
+    HUD.showFieldPicker({ groups: [{ title: "基本信息", items: [{ key: "name", label: "姓名" }] }], onCancel: () => {} });
+    await sleep(60);
+    sh(".picker .md-head .rp-x").click();
+    await sleep(60);
+    check("点字段选择面板右上角的叉，面板收起",
+      !visible(sh(".picker")), "display=" + disp(sh(".picker")));
+
+    group("点选流程：已收集面板");
+
+    HUD.showListPanel({
+      title: "已收集 2 个字段映射",
+      sub: "下次进来会自动认",
+      groups: [{ title: "已收集", items: [{ label: "#pickBox", hint: "期望职位" }] }],
+      actions: [{ label: "继续点选" }, { label: "复制代码" }, { label: "完成", primary: true }],
+      onClose: () => {}
+    });
+    await sleep(60);
+    check("已收集面板能弹出来", visible(sh(".collect")), "display=" + disp(sh(".collect")));
+    check("已收集面板有动作按钮",
+      document.querySelectorAll ? (sh(".collect") && sh(".collect").textContent.indexOf("复制代码") >= 0) : false,
+      sh(".collect") ? "面板含「复制代码」" : "面板不存在");
+
+    sh(".collect .md-head .rp-x").click();
+    await sleep(60);
+    check("点已收集面板的叉，面板收起",
+      !visible(sh(".collect")), "display=" + disp(sh(".collect")));
+
+    group("两个模态面板互斥");
+
+    HUD.showFieldPicker({ groups: [{ title: "基本信息", items: [{ key: "name", label: "姓名" }] }], onCancel: () => {} });
+    await sleep(50);
+    HUD.showListPanel({ title: "结果", groups: [], actions: [], onClose: () => {} });
+    await sleep(60);
+    check("打开已收集面板时，字段选择面板自动收起",
+      !visible(sh(".picker")) && visible(sh(".collect")),
+      "picker=" + disp(sh(".picker")) + " / collect=" + disp(sh(".collect")));
+    HUD.closeModals();
+    await sleep(50);
+    check("两个面板都收起后，画面上不残留任何面板",
+      !visible(sh(".picker")) && !visible(sh(".collect")),
+      "picker=" + disp(sh(".picker")) + " / collect=" + disp(sh(".collect")));
+
+    group("确认卡片与轻提示");
+
+    HUD.showPrompt({
+      title: "检测到投递成功",
+      text: "要不要记进投递台账？",
+      actions: [{ label: "记一笔", primary: true }, { label: "不用" }]
+    });
+    await sleep(60);
+    check("确认卡片能显示", visible(sh(".prompt")), "display=" + disp(sh(".prompt")));
+    const ptX = sh(".prompt .pt-x");
+    check("确认卡片有右上角关闭按钮", !!ptX, ptX ? "找到 .pt-x" : "没找到");
+    if (ptX) {
+      ptX.click();
+      await sleep(60);
+      check("点确认卡片的叉之后卡片收起", !visible(sh(".prompt")), "display=" + disp(sh(".prompt")));
+    }
+
+    HUD.toast("这是一条测试提示");
+    await sleep(60);
+    check("轻提示能显示", visible(sh(".toast")), "display=" + disp(sh(".toast")));
+
+    group("菜单");
+
+    const ball = sh(".ball");
+    check("悬浮球在页面上", visible(ball), ball ? "球可见" : "没找到球");
+    check("悬浮球上有动作菜单项（注册入口可用）", !!HUD.registerAction, typeof HUD.registerAction === "function" ? "registerAction 可调用" : "不可用");
+
+    group("回归：关掉后不影响再次打开");
+
+    HUD.showReport({ adapter: "测试站点", filled: 5 }, { pending: [], unknown: [], knownEmpty: [] });
+    await sleep(60);
+    check("关掉过的战报还能再次打开（状态没有卡死）",
+      visible(sh(".report")), "display=" + disp(sh(".report")));
+    HUD.hideReport();
+    await sleep(50);
+
+    HUD.showPickBar("第二次点选", { onCancel: () => {} });
+    await sleep(50);
+    check("关掉过的点选提示条还能再次打开",
+      visible(sh(".pick-bar")), "display=" + disp(sh(".pick-bar")));
+    HUD.hidePickBar();
+
+    check("测试过程中没有未捕获的页面错误", pageErrors.length === 0, pageErrors.slice(0, 2).join(" | "));
+
+  } catch (e) {
+    check("测试脚本没有中途崩溃", false, e && e.message ? e.message : String(e));
+  }
+
+  document.body.dataset.jianliDone = "1";
+  updateSummary();
+
+  document.getElementById("raw").textContent = JSON.stringify({
+    summary: document.getElementById("summary").textContent,
+    failures: results.map((r, i) => r ? null : i).filter(i => i !== null).length,
+    errors: pageErrors
+  }, null, 2);
+})();
+</script>
+</body>
+</html>

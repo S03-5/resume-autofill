@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:,">
+<title>第五步验证：投递台账</title>
+<style>
+  body {
+    margin: 0; padding: 16px 18px 140px;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f8fafc; color: #0f172a; font-size: 14px;
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { color: #64748b; font-size: 12.5px; margin-bottom: 12px; }
+  #summary {
+    position: sticky; top: 0; z-index: 10;
+    padding: 11px 14px; border-radius: 9px; font-weight: 700; font-size: 14px;
+    background: #e2e8f0; margin-bottom: 12px;
+  }
+  #summary.pass { background: #dcfce7; color: #15803d; }
+  #summary.fail { background: #fee2e2; color: #b91c1c; }
+  .item {
+    display: flex; gap: 9px; align-items: flex-start;
+    padding: 6px 10px; border-radius: 7px; margin-bottom: 3px;
+    background: #fff; border: 1px solid #e2e8f0; font-size: 13px;
+  }
+  .item .mk { flex: 0 0 auto; font-weight: 700; }
+  .item.pass .mk { color: #16a34a; }
+  .item.fail .mk { color: #dc2626; }
+  .item.fail { background: #fef2f2; border-color: #fecaca; }
+  .item .dt { color: #64748b; font-size: 12px; margin-left: 4px; }
+  .group-title { margin: 14px 0 6px; font-size: 12px; font-weight: 700; color: #94a3b8; }
+  form {
+    margin-top: 20px; padding: 14px 16px; background: #fff;
+    border: 1px solid #e2e8f0; border-radius: 10px; max-width: 520px;
+  }
+  form h2 { font-size: 13px; margin: 0 0 10px; color: #334155; }
+  .fm { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .fm label { flex: 0 0 96px; font-size: 12.5px; color: #475569; }
+  .fm input {
+    flex: 1; padding: 6px 9px; border: 1px solid #cbd5e1; border-radius: 6px;
+    font-size: 13px; font-family: inherit;
+  }
+  #raw {
+    margin-top: 14px; padding: 8px; background: #0f172a; color: #a7f3d0;
+    font-family: Consolas, monospace; font-size: 11px; line-height: 1.4;
+    max-height: 220px; overflow: auto; white-space: pre-wrap; border-radius: 8px;
+  }
+</style>
+</head>
+<body>
+<h1>第五步验证：投递台账</h1>
+<div class="sub">
+  本页 mock 扩展 API 并加载真实的台账模块与内容脚本，验证：记一笔、按链接去重、
+  改状态与编辑、统计、CSV 导出转义、页面解析出公司与岗位、成功页判别（含排除台账页）、
+  悬浮球入口、确认卡片。
+</div>
+<div id="summary">正在运行…</div>
+<div id="list"></div>
+
+<form id="mockForm" autocomplete="off">
+  <h2>模拟招聘网站的简历表单</h2>
+  <div class="fm"><label>姓名</label><input id="candName" name="candidateName" placeholder="请输入姓名"></div>
+  <div class="fm"><label>手机号码</label><input name="mobile" placeholder="请输入手机号"></div>
+  <div class="fm"><label>电子邮箱</label><input name="mail" placeholder="请输入邮箱"></div>
+  <div class="fm"><label>期望职位</label><input id="expectPos" placeholder="请输入期望职位"></div>
+</form>
+
+<pre id="raw"></pre>
+
+<script>
+// ============================================================
+// 1. mock 扩展 API
+// ============================================================
+const MOCK = {
+  settings: {
+    autoFill: false,
+    skipFilled: true,
+    showHud: true,
+    // 测试页自己的正文里就会出现「投递成功」这类字串（断言文案里带了），
+    // 关掉自动提示，免得内容脚本把测试页当成真实成功页弹卡片。判别逻辑本身用
+    // judgeAppliedText 纯函数测，不依赖真实页面文本。
+    ledgerPrompt: false,
+    hotkey: "command"
+  },
+  resumeData: { name: "测试同学", phone: "13800000000", email: "test@example.com", position: "机械结构工程师" },
+  blocks: {},
+  attachment: null,
+  customFields: [],
+  hudPos: null,
+  siteMaps: undefined,
+  ledger: undefined,
+  profiles: [{ id: "p_test", name: "嵌入式岗", data: {}, blocks: {}, attachmentRef: "" }],
+  activeProfileId: "p_test"
+};
+
+const storageListeners = [];
+const messageListeners = [];
+
+function pickKeys(keys) {
+  const out = {};
+  if (!keys) return Object.assign({}, MOCK);
+  if (typeof keys === "string") { out[keys] = MOCK[keys]; return out; }
+  if (Array.isArray(keys)) { keys.forEach(k => { out[k] = MOCK[k]; }); return out; }
+  Object.keys(keys).forEach(k => { out[k] = (MOCK[k] === undefined) ? keys[k] : MOCK[k]; });
+  return out;
+}
+
+window.chrome = {
+  runtime: {
+    getManifest: () => ({ version: "2.0.0-test" }),
+    onMessage: { addListener: fn => messageListeners.push(fn) },
+    sendMessage: () => {}
+  },
+  storage: {
+    local: {
+      get: (keys, cb) => {
+        const res = pickKeys(keys);
+        if (typeof cb === "function") { setTimeout(() => cb(res), 0); return undefined; }
+        return Promise.resolve(res);
+      },
+      set: (obj, cb) => {
+        Object.assign(MOCK, obj);
+        if (typeof cb === "function") setTimeout(() => cb(), 0);
+        const changes = {};
+        Object.keys(obj).forEach(k => { changes[k] = { newValue: obj[k] }; });
+        setTimeout(() => storageListeners.forEach(fn => { try { fn(changes, "local"); } catch (e) { /* ignore */ } }), 0);
+        return Promise.resolve();
+      }
+    },
+    onChanged: { addListener: fn => storageListeners.push(fn) }
+  }
+};
+</script>
+
+<script src="../content/lexicon.js"></script>
+<script src="../content/matcher.js"></script>
+<script src="../content/sites.js"></script>
+<script src="../content/widgets.js"></script>
+<script src="../content/blocks.js"></script>
+<script src="../content/memory.js"></script>
+<script src="../content/infer.js"></script>
+<script src="../content/ledger.js"></script>
+<script src="../content/hud.js"></script>
+<script src="../content/content.js"></script>
+
+<script>
+// ============================================================
+// 2. 断言框架
+// ============================================================
+const LEDGER = window.JIANLI_LEDGER;
+const HUD = window.JIANLI_HUD;
+const INFER = window.JIANLI_INFER;
+const results = [];
+const listEl = document.getElementById("list");
+let groupEl = null;
+
+const pageErrors = [];
+window.addEventListener("error", e => pageErrors.push("error: " + e.message));
+window.addEventListener("unhandledrejection", e => {
+  pageErrors.push("rejection: " + ((e.reason && e.reason.message) || e.reason));
+});
+window.__jianliTestErrors = pageErrors;
+
+function group(title) {
+  groupEl = document.createElement("div");
+  groupEl.className = "group-title";
+  groupEl.textContent = title;
+  listEl.appendChild(groupEl);
+}
+
+function check(name, pass, detail) {
+  results.push(!!pass);
+  const div = document.createElement("div");
+  div.className = "item " + (pass ? "pass" : "fail");
+  const mk = document.createElement("span");
+  mk.className = "mk";
+  mk.textContent = pass ? "✓" : "✗";
+  const nm = document.createElement("span");
+  nm.textContent = name;
+  if (detail) {
+    const dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = "（" + detail + "）";
+    nm.appendChild(dt);
+  }
+  div.appendChild(mk);
+  div.appendChild(nm);
+  (groupEl || listEl).appendChild(div);
+  updateSummary();
+}
+
+function updateSummary() {
+  const s = document.getElementById("summary");
+  const bad = results.filter(r => !r).length;
+  if (bad === 0) {
+    s.className = "pass";
+    s.textContent = "✓ 全部通过 " + results.length + " / " + results.length;
+  } else {
+    s.className = "fail";
+    s.textContent = "✗ 存在失败项 " + bad + " / " + results.length + "（红色那几行）";
+  }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const el = id => document.getElementById(id);
+const raw = x => { document.getElementById("raw").textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2); };
+const ledgerRaw = () => (MOCK.ledger || []);
+
+function send(msg) {
+  return new Promise(resolve => {
+    let settled = false;
+    const done = r => { if (!settled) { settled = true; resolve(r); } };
+    for (const fn of messageListeners) {
+      try { fn(msg, {}, done); } catch (e) { /* ignore */ }
+    }
+    setTimeout(() => done({ ok: false, reason: "内容脚本没有响应" }), 8000);
+  });
+}
+
+function shadowRootOfHud() {
+  const h = document.getElementById("jianli-hud-host");
+  return h ? h.shadowRoot : null;
+}
+
+function hudEl(sel) {
+  const sr = shadowRootOfHud();
+  return sr ? sr.querySelector(sel) : null;
+}
+
+// 判断"用户到底看不看得见"，而不是"hidden 属性是不是 true"。
+// 面板样式里声明了 display，而 [hidden]{display:none} 来自 UA 样式表会被它盖掉，
+// 只断言 hidden 属性会得到「假通过」（线上表现为卡片关不掉）。
+function vis(el) {
+  if (!el) return false;
+  const cs = getComputedStyle(el);
+  if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+}
+
+function tapBall() {
+  const b = hudEl(".ball");
+  if (!b) return false;
+  const r = b.getBoundingClientRect();
+  const opts = {
+    bubbles: true, cancelable: true, composed: true,
+    clientX: r.left + 10, clientY: r.top + 10, pointerId: 1, button: 0
+  };
+  b.dispatchEvent(new PointerEvent("pointerdown", opts));
+  b.dispatchEvent(new PointerEvent("pointerup", opts));
+  return true;
+}
+
+// ============================================================
+// 3. 测试主流程
+// ============================================================
+(async function () {
+ try {
+  if (!LEDGER) { check("ledger.js 已加载", false, "window.JIANLI_LEDGER 不存在"); return; }
+
+  // ---------- A. 台账存储与去重 ----------
+  group("A. 台账存储与去重");
+
+  await LEDGER.ensureLoaded();
+  check("初始台账是空的",
+    LEDGER.count() === 0,
+    "条数=" + LEDGER.count());
+
+  const t0 = Date.now();
+  const a1 = await LEDGER.add({
+    company: "某某科技有限公司",
+    position: "嵌入式软件工程师",
+    city: "北京",
+    url: "https://www.zhipin.com/job/1001",
+    host: "www.zhipin.com",
+    siteName: "BOSS直聘",
+    profileName: "嵌入式岗",
+    appliedAt: t0
+  });
+  check("记一笔：写入成功",
+    a1.ok && !a1.duplicate && LEDGER.count() === 1,
+    a1.ok ? ("条数=" + LEDGER.count()) : a1.reason);
+
+  const rec1 = LEDGER.get(a1.id);
+  check("记一笔：字段都存下来了",
+    rec1.company === "某某科技有限公司" && rec1.position === "嵌入式软件工程师" &&
+    rec1.city === "北京" && rec1.profileName === "嵌入式岗" && rec1.status === "applied",
+    JSON.stringify({ c: rec1.company, p: rec1.position, city: rec1.city, pf: rec1.profileName, st: rec1.status }));
+
+  const a2 = await LEDGER.add({
+    company: "某某科技有限公司",
+    position: "嵌入式软件工程师",
+    url: "https://www.zhipin.com/job/1001"
+  });
+  check("同一个岗位链接不会重复记一条",
+    a2.duplicate === true && LEDGER.count() === 1,
+    "duplicate=" + a2.duplicate + "，条数=" + LEDGER.count());
+
+  const a3 = await LEDGER.add({
+    company: "某某科技有限公司",
+    position: "算法工程师",
+    url: "https://www.zhipin.com/job/1002"
+  });
+  check("同一家公司的另一个岗位算新的一条",
+    a3.ok && !a3.duplicate && LEDGER.count() === 2,
+    "条数=" + LEDGER.count());
+
+  const a4 = await LEDGER.add({ company: "某某网络科技", position: "前端开发工程师" });
+  const a5 = await LEDGER.add({ company: "某某网络科技", position: "前端开发工程师" });
+  check("没有链接时按「公司 + 岗位」去重",
+    a4.ok && a5.duplicate === true && LEDGER.count() === 3,
+    "第二次 duplicate=" + a5.duplicate + "，条数=" + LEDGER.count());
+
+  const a6 = await LEDGER.add({ company: "", position: "" });
+  check("公司和岗位都空时拒绝写入",
+    a6.ok === false && LEDGER.count() === 3,
+    "理由=" + a6.reason);
+
+  const a7 = await LEDGER.add({ company: "带异常状态的公司", position: "测试岗", status: "不存在的状态" });
+  check("不认识的状态被规范成「已投递」",
+    a7.ok && LEDGER.get(a7.id).status === "applied",
+    "status=" + (a7.ok ? LEDGER.get(a7.id).status : a7.reason));
+
+  // ---------- B. 改动与统计 ----------
+  group("B. 改状态 / 编辑 / 统计 / CSV");
+
+  await LEDGER.update(a1.id, { status: "interview" });
+  check("改状态生效",
+    LEDGER.get(a1.id).status === "interview",
+    "status=" + LEDGER.get(a1.id).status);
+
+  await LEDGER.update(a1.id, { note: "约了下周二一面", city: "北京朝阳" });
+  check("备注和城市可以改",
+    LEDGER.get(a1.id).note === "约了下周二一面" && LEDGER.get(a1.id).city === "北京朝阳",
+    "note=" + LEDGER.get(a1.id).note);
+
+  const badUpdate = await LEDGER.update("不存在的id", { status: "offer" });
+  check("改不存在的记录会返回失败而不是静默成功",
+    badUpdate.ok === false,
+    "理由=" + badUpdate.reason);
+
+  // 造两条不同时间的记录，检查统计口径
+  await LEDGER.add({ company: "三天前投的", position: "测试岗", url: "https://x.com/3days", appliedAt: Date.now() - 3 * 86400000 });
+  await LEDGER.add({ company: "十天前投的", position: "测试岗", url: "https://x.com/10days", appliedAt: Date.now() - 10 * 86400000 });
+
+  // 此时台账里 6 条：今天 4 条（a1/a3/a4/a7）、三天前 1 条、十天前 1 条；
+  // a1 已被改成「面试中」，其余 5 条是「已投递」
+  const st = LEDGER.stats();
+  check("统计总数正确",
+    st.total === 6 && st.total === LEDGER.count(),
+    "total=" + st.total + "（实际存储 " + LEDGER.count() + " 条）");
+
+  check("「今天」只算今天投的（4 条）",
+    st.today === 4,
+    "today=" + st.today);
+
+  check("「近 7 天」含三天前、不含十天前（5 条）",
+    st.week === 5,
+    "week=" + st.week);
+
+  check("「还没出结果」= 已投递 + 笔试 + 面试中（5 + 0 + 1 = 6）",
+    st.pending === 6 && st.pending === st.byStatus.applied + st.byStatus.exam + st.byStatus.interview,
+    "pending=" + st.pending + " byStatus=" + JSON.stringify(st.byStatus));
+
+  const filtered = LEDGER.list({ status: "interview" });
+  check("按状态筛选能用",
+    filtered.length === 1 && filtered[0].id === a1.id,
+    "筛出 " + filtered.length + " 条");
+
+  const searched = LEDGER.list({ keyword: "算法" });
+  check("按关键词搜索能用",
+    searched.length === 1 && searched[0].position === "算法工程师",
+    "搜出 " + searched.length + " 条");
+
+  check("列表按投递时间倒序",
+    (function () {
+      const l = LEDGER.list();
+      for (let i = 1; i < l.length; i++) {
+        if ((l[i - 1].appliedAt || 0) < (l[i].appliedAt || 0)) return false;
+      }
+      return true;
+    })(),
+    LEDGER.list().map(r => LEDGER.fmtDay(r.appliedAt)).join(" "));
+
+  const csv = LEDGER.toCsv([
+    { company: 'A,b"c', position: "工程师", city: "", status: "applied", appliedAt: Date.now(), siteName: "", profileName: "", url: "https://x.com/1", note: "有,逗号" }
+  ]);
+  check("CSV 开头有 BOM（Excel 打开中文不乱码）",
+    csv.charCodeAt(0) === 0xFEFF,
+    "首字符码=" + csv.charCodeAt(0));
+  check("CSV 表头包含公司 / 岗位 / 状态 / 投递时间",
+    /公司,岗位,城市,状态,投递时间/.test(csv),
+    csv.split("\r\n")[0]);
+  check("CSV 里的逗号和引号被正确转义",
+    csv.includes('"A,b""c"') && csv.includes('"有,逗号"'),
+    csv.split("\r\n")[1]);
+
+  // ---------- C. 页面解析与成功页判别 ----------
+  group("C. 页面解析与成功页判别");
+
+  const origTitle = document.title;
+  document.title = "嵌入式软件工程师（深圳） - 某某科技有限公司 - BOSS直聘";
+
+  const parsed = LEDGER.parsePage();
+  check("能从页面标题解析出岗位名",
+    parsed.position === "嵌入式软件工程师",
+    "position=" + parsed.position);
+  check("能从页面标题解析出公司名",
+    parsed.company === "某某科技有限公司",
+    "company=" + parsed.company);
+  check("能从页面标题解析出城市",
+    parsed.city === "深圳",
+    "city=" + parsed.city);
+  check("解析结果带上了当前页面链接和主机名",
+    !!parsed.url && !!parsed.host,
+    parsed.host + " | " + String(parsed.url).slice(0, 40));
+
+  check("能从域名认出站点名（zhipin.com → BOSS直聘）",
+    LEDGER.siteNameFor("www.zhipin.com") === "BOSS直聘",
+    "实际=" + JSON.stringify(LEDGER.siteNameFor("www.zhipin.com")));
+
+  check("没有适配器的域名返回空站点名（不瞎猜）",
+    LEDGER.siteNameFor("example.com") === "",
+    "实际=" + JSON.stringify(LEDGER.siteNameFor("example.com")));
+
+  check("成功页文本被识别",
+    LEDGER.judgeAppliedText("投递成功！你的简历已送达 HR") === true,
+    "判定=" + LEDGER.judgeAppliedText("投递成功！你的简历已送达 HR"));
+
+  check("「简历已投递」这类说法也能识别",
+    LEDGER.judgeAppliedText("简历已投递，请等待企业处理") === true,
+    "判定=" + LEDGER.judgeAppliedText("简历已投递，请等待企业处理"));
+
+  check("台账列表页里的「已投递」字样不会被误判成成功页",
+    LEDGER.judgeAppliedText("我的投递记录：某某公司 已投递 2026-09-14") === false,
+    "判定=" + LEDGER.judgeAppliedText("我的投递记录：某某公司 已投递 2026-09-14"));
+
+  check("普通页面的文本不会被误判",
+    LEDGER.judgeAppliedText("你觉得这份工作怎么样？立即沟通") === false,
+    "判定=" + LEDGER.judgeAppliedText("你觉得这份工作怎么样？立即沟通"));
+
+  document.title = "普通页面";
+
+  // ---------- D. 悬浮球入口与提示卡 ----------
+  group("D. 悬浮球入口与确认卡片");
+
+  await sleep(300);
+  check("悬浮球挂载在页面上",
+    !!hudEl(".ball"),
+    "没找到 .ball");
+
+  const opened = tapBall();
+  await sleep(150);
+  const menu = hudEl(".menu");
+  const menuText = menu ? menu.textContent : "";
+  check("点悬浮球能打开菜单",
+    opened && vis(menu),
+    "menu display=" + (menu ? getComputedStyle(menu).display : "无"));
+
+  check("菜单里有「记一笔投递」",
+    /记一笔/.test(menuText),
+    menuText.replace(/\s+/g, " ").slice(0, 80));
+
+  // 直接走消息通路记账（和悬浮球点「记一笔」是同一条函数）
+  document.title = "嵌入式软件工程师 - 某某科技有限公司 - BOSS直聘";
+  const r1 = await send({ type: "LEDGER_ADD_PAGE" });
+  await sleep(150);
+  check("「把当前页记进台账」通路可用",
+    !!(r1 && r1.ok) && !r1.duplicate,
+    r1 ? JSON.stringify({ ok: r1.ok, dup: r1.duplicate, reason: r1.reason }) : "无响应");
+
+  const pageRec = LEDGER.list().find(r => r.position === "嵌入式软件工程师" && r.company === "某某科技有限公司");
+  check("记进来的记录带上了当前方案名（这次用的哪版简历）",
+    !!pageRec && pageRec.profileName === "嵌入式岗",
+    pageRec ? ("profileName=" + JSON.stringify(pageRec.profileName)) : "没找到这条记录");
+
+  const r2 = await send({ type: "LEDGER_ADD_PAGE" });
+  await sleep(120);
+  check("同一个页面再记一次不会重复",
+    !!(r2 && r2.ok) && r2.duplicate === true,
+    r2 ? ("duplicate=" + r2.duplicate) : "无响应");
+
+  // 提示卡：确认卡片本身的行为
+  let primaryClicked = 0, closeCalled = 0;
+  const shown = HUD.showPrompt({
+    title: "检测到成功页",
+    text: "某某科技有限公司 · 嵌入式软件工程师\n要不要记进台账？",
+    actions: [
+      { label: "记一比", primary: true, onClick: () => { primaryClicked++; } },
+      { label: "不用", onClick: () => { closeCalled++; } }
+    ],
+    onClose: () => { closeCalled++; }
+  });
+  await sleep(80);
+
+  const promptEl = hudEl(".prompt");
+  check("确认卡片能弹出来",
+    shown === true && vis(promptEl),
+    "shown=" + shown + " display=" + (promptEl ? getComputedStyle(promptEl).display : "无"));
+
+  check("卡片显示了标题和正文",
+    /检测到成功页/.test(promptEl.textContent) && /嵌入式软件工程师/.test(promptEl.textContent),
+    promptEl.textContent.replace(/\s+/g, " ").slice(0, 70));
+
+  const promptBtns = Array.from(promptEl.querySelectorAll(".pt-acts button"));
+  check("卡片有两个动作按钮，主按钮排在前面",
+    promptBtns.length === 2 && /记一比/.test(promptBtns[0].textContent) && promptBtns[0].classList.contains("pri-btn"),
+    promptBtns.map(b => b.textContent).join(" / "));
+
+  if (promptBtns.length) promptBtns[0].click();
+  await sleep(80);
+  check("点主按钮会触发对应动作",
+    primaryClicked === 1,
+    "触发次数=" + primaryClicked);
+
+  const xBtn = promptEl.querySelector(".pt-x");
+  if (xBtn) xBtn.click();
+  await sleep(80);
+  check("点右上角关闭会收起卡片并回调 onClose",
+    !vis(promptEl) && closeCalled === 1,
+    "display=" + getComputedStyle(promptEl).display + " onClose=" + closeCalled);
+
+  check("提示卡放在 Shadow DOM 里（不会被站点样式污染）",
+    !document.querySelector(".prompt") && !!shadowRootOfHud().querySelector(".prompt"),
+    "页面上有没有 .prompt：" + !!document.querySelector(".prompt"));
+
+  // 删除 / 清空
+  const before = LEDGER.count();
+  await LEDGER.remove(pageRec.id);
+  check("能删掉单条记录",
+    LEDGER.count() === before - 1 && !LEDGER.get(pageRec.id),
+    "条数 " + before + " → " + LEDGER.count());
+
+  await LEDGER.clear();
+  check("能清空台账",
+    LEDGER.count() === 0 && ledgerRaw().length === 0,
+    "条数=" + LEDGER.count());
+
+  // ---------- E. 回归 ----------
+  group("E. 前几步功能回归");
+
+  check("状态定义齐全（已投递 / 笔试 / 面试中 / 已通过 / 已拒）",
+    LEDGER.STATUSES.length === 5 &&
+    LEDGER.STATUSES.map(s => s.key).join(",") === "applied,exam,interview,offer,rejected" &&
+    LEDGER.STATUS_LABEL.interview === "面试中",
+    LEDGER.STATUSES.map(s => s.label).join(" / "));
+
+  el("candName").value = "";
+  MOCK.resumeData = { name: "测试同学", position: "机械结构工程师" };
+  const filled = await send({ type: "HUD_FILL" });
+  await sleep(200);
+  check("填表功能仍然正常",
+    !!(filled && filled.ok) && el("candName").value === "测试同学",
+    "candName=" + JSON.stringify(el("candName").value));
+
+  const undone = await send({ type: "UNDO_FILL" });
+  await sleep(120);
+  check("撤销仍然正常",
+    !!(undone && undone.ok) && el("candName").value === "",
+    undone && undone.ok ? ("恢复了 " + undone.restored + " 个框") : (undone && undone.reason));
+
+  const st2 = await send({ type: "GET_STATUS" });
+  check("状态接口仍然正常",
+    !!(st2 && st2.ok),
+    st2 ? ("candidates=" + st2.candidates) : "无响应");
+
+  check("测试过程中没有未捕获的页面错误",
+    pageErrors.length === 0,
+    pageErrors.slice(0, 2).join(" | "));
+
+ } catch (e) {
+  check("测试脚本没有中途崩溃", false, e && e.message ? e.message : String(e));
+ }
+ document.body.dataset.jianliDone = "1";
+ updateSummary();
+})();
+</script>
+</body>
+</html>

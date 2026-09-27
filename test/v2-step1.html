@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="xH64CaJoKG3mJgKHe7szX4">
+<head data-page-node-id="hL92n5XLYYGR6E2K8EttDo">
+<meta charset="UTF-8" data-page-node-id="sp8Qyw8QfxB0gac8cgci8V">
+<link rel="icon" href="data:,">
+<title>V2 第一步验证：组件型表单 / 经历块 / 附件上传</title>
+<style>
+  body { font-family: "Microsoft YaHei", system-ui, sans-serif; margin: 0; padding: 18px 22px; color: #1e293b; line-height: 1.6; }
+  h2 { margin: 0 0 4px; font-size: 19px; }
+  .sub { color: #64748b; font-size: 13px; margin-bottom: 14px; }
+  h4 { margin: 18px 0 6px; font-size: 14px; color: #334155; }
+  .panel { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; background: #f8fafc; }
+  label { font-size: 12.5px; color: #475569; }
+  input, textarea, select { padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: inherit; background: #fff; }
+  .row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .row label { flex: 0 0 78px; }
+
+  /* --- 模拟 antd Select --- */
+  .ant-select { display: inline-flex; align-items: center; min-width: 190px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; background: #fff; cursor: pointer; }
+  .ant-select-selector { display: flex; align-items: center; gap: 6px; width: 100%; }
+  .ant-select-selection-item { font-size: 13px; min-height: 18px; }
+  .ant-select-selection-search-input { border: none !important; outline: none; flex: 1; padding: 2px !important; background: transparent !important; }
+  .ant-select-dropdown { position: absolute; z-index: 99; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 14px rgba(15,23,42,.12); padding: 4px; min-width: 190px; }
+  .ant-select-item-option { padding: 5px 10px; border-radius: 5px; font-size: 13px; cursor: pointer; }
+  .ant-select-item-option:hover, .ant-select-item-option-selected { background: #e0f2fe; }
+
+  /* --- 模拟 antd DatePicker --- */
+  .ant-picker { display: inline-flex; align-items: center; min-width: 190px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; background: #fff; cursor: pointer; }
+  .ant-picker-input-inner { border: none !important; outline: none; width: 100%; padding: 2px !important; background: transparent !important; }
+  .ant-picker-dropdown { position: absolute; z-index: 99; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 14px rgba(15,23,42,.12); padding: 8px; width: 240px; }
+  .ant-picker-header { display: flex; justify-content: center; margin-bottom: 6px; }
+  .ant-picker-year-btn { border: none; background: #f1f5f9; border-radius: 5px; padding: 3px 10px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .ant-picker-body { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .ant-picker-cell { text-align: center; padding: 4px 0; font-size: 12.5px; border-radius: 4px; cursor: pointer; }
+  .ant-picker-cell:hover { background: #e0f2fe; }
+
+  /* --- 模拟 antd Cascader --- */
+  .ant-cascader { display: inline-flex; align-items: center; min-width: 260px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; background: #fff; cursor: pointer; }
+  .ant-cascader input { border: none !important; outline: none; width: 100%; padding: 2px !important; background: transparent !important; }
+  .ant-cascader-dropdown { position: absolute; z-index: 99; display: flex; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 14px rgba(15,23,42,.12); overflow: hidden; }
+  .ant-cascader-menu { min-width: 120px; max-height: 220px; overflow-y: auto; border-right: 1px solid #f1f5f9; padding: 4px; }
+  .ant-cascader-menu:last-child { border-right: none; }
+  .ant-cascader-menu-item { padding: 5px 10px; font-size: 13px; border-radius: 5px; cursor: pointer; }
+  .ant-cascader-menu-item:hover { background: #e0f2fe; }
+
+  /* --- 经历块 --- */
+  .exp-section { border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 12px; background: #fff; }
+  .exp-section h4 { margin: 0 0 8px; font-size: 13.5px; }
+  .exp-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+  .exp-item { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; border: 1px solid #e2e8f0; border-radius: 7px; padding: 9px; background: #f8fafc; }
+  .exp-item .cell { display: flex; flex-direction: column; gap: 2px; }
+  .exp-item input, .exp-item textarea { width: 100%; box-sizing: border-box; }
+  .exp-item .full { grid-column: 1 / -1; }
+
+  /* --- 结果表 --- */
+  #report { margin-top: 16px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+  #report .head { padding: 10px 14px; background: #f1f5f9; font-size: 14px; font-weight: 600; }
+  #report .head.pass { background: #dcfce7; color: #14532d; }
+  #report .head.fail { background: #fee2e2; color: #7f1d1d; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  td { padding: 6px 10px; border-top: 1px solid #f1f5f9; vertical-align: top; }
+  td.r { width: 40px; text-align: center; font-weight: 700; }
+  tr.ok td.r { color: #15803d; }
+  tr.no td.r { color: #b91c1c; }
+  .exp { color: #64748b; }
+  .got { color: #0f172a; }
+  pre { background: #0f172a; color: #cbd5e1; padding: 10px; border-radius: 8px; font-size: 11.5px; overflow: auto; max-height: 260px; }
+</style>
+</head>
+<body data-page-node-id="uk0o6NTpSU9bEHZwSs6QVo">
+<h2 data-page-node-id="fBPVOkQoyKzXpBHymJ4HZ4">V2 第一步验证</h2>
+<div class="sub" data-page-node-id="ZnGGATw0Gc5YNxKL3gNri4">组件型表单（非原生下拉 / 日期 / 省市区级联）· 重复经历块自动增行 · 简历附件自动上传</div>
+
+<div class="panel" data-page-node-id="KvMX9SjVIqqjLIZSguSimq">
+  <h4 data-page-node-id="XdJubXw60k8zo15u2s7OdH">1. 模拟 antd Select（非原生下拉，内部 input 是 readonly）</h4>
+  <div class="row" data-page-node-id="4t0xBSTPayHYuWxHrjjcdf">
+    <label data-page-node-id="0IB6VKQwcD2GL4l1ZaywvB">最高学历</label>
+    <div class="ant-select" id="wDegree" data-page-node-id="VQCMMJ7GFHVneFTGytRS9b">
+      <div class="ant-select-selector" data-page-node-id="I19rEcX6C3UIh6hbi36LPW">
+        <span class="ant-select-selection-item" id="wDegreeText" data-page-node-id="tMTmIUooaDT5nMPPclIm68"></span>
+        <input class="ant-select-selection-search-input" readonly placeholder="请选择最高学历" data-page-node-id="wjPsRJXfNaxEzSWKBMHG6o">
+      </div>
+    </div>
+  </div>
+
+  <h4 data-page-node-id="LE0MfQxyvrS5ik9LbsKifK">2. 模拟 antd DatePicker（年月，受控组件，直接赋值会被还原）</h4>
+  <div class="row" data-page-node-id="BB6kwYQ8j9bCw2crvhZF5V">
+    <label data-page-node-id="N4JSEWGrKHLJEzhi5C9Iv9">出生年月</label>
+    <div class="ant-picker" id="wBirth" data-page-node-id="rGIa9yy2LncZcFoADelZvn">
+      <div class="ant-picker-input" data-page-node-id="xqLJ2mPPGtzzKgM6FqeWO3">
+        <input class="ant-picker-input-inner" readonly placeholder="请选择出生年月" data-page-node-id="VCeFRPR5TASw38i3OXyWs6">
+      </div>
+    </div>
+  </div>
+
+  <h4 data-page-node-id="w8rKLCEZbkmWM2NBOyPm1v">3. 模拟 antd Cascader（省 / 市 / 区 三级级联）</h4>
+  <div class="row" data-page-node-id="6FOGSsb2afCsVJUcemRHOP">
+    <label data-page-node-id="K21uEAH98HNAaHQGw0CdxA">现居地</label>
+    <div class="ant-cascader" id="wCity" data-page-node-id="nd9ZwEGrWm657KOTOvOnFt">
+      <input readonly placeholder="请选择现居地" data-page-node-id="kjrvJwGDplxdw4oMtcsU7a">
+    </div>
+  </div>
+</div>
+
+<div class="panel" data-page-node-id="Zm31Ikn9HAFBNRfgB9Hnrb">
+  <h4 data-page-node-id="iyRVRilxlELm0ssupxVN55">4. 教育经历（页面上只有 1 行）</h4>
+  <div class="exp-section" id="secEdu" data-page-node-id="rUBwvP3uGG4WIPrXKRcGRA">
+    <h4 data-page-node-id="VcZsGafQrLeuqgfpSu6ND2">教育经历</h4>
+    <div class="exp-list" id="eduList" data-page-node-id="FQ9CHf4QPO0Lc7pCDvJRzK">
+      <div class="exp-item" data-page-node-id="wFYDLPg0fkSevze8TlKMhB">
+        <div class="cell" data-page-node-id="zbropvQ8jwFmMwe1r7kuZc"><label data-page-node-id="pQg9DfUqfpaZOnjQUXAPl9">学校名称</label><input placeholder="学校名称" data-page-node-id="Hr3Dkqtrgkw4m1RqnysGtz"></div>
+        <div class="cell" data-page-node-id="p7bo5fbpeC101Ep1QKvCSt"><label data-page-node-id="EDWlu10lG11c9MHoGOcbVR">专业</label><input placeholder="专业" data-page-node-id="knkcnkGtdCiaHV2vCcMtwU"></div>
+        <div class="cell" data-page-node-id="3OUrGarNRR12I0PV0RcADF"><label data-page-node-id="LYIshbZzlq8umdKQImNxJJ">学历</label><input placeholder="学历" data-page-node-id="KGnzAUdWkFGjftXROSi4QY"></div>
+        <div class="cell" data-page-node-id="6sMhtje1x0Iq9LALQ6pFz0"><label data-page-node-id="rNKL3fpmNBpxjLGHyc45wm">成绩排名</label><input placeholder="成绩排名" data-page-node-id="HrXjovaZX3gosFCpwoDGXQ"></div>
+        <div class="cell" data-page-node-id="JDVEOQA7byiSh5bZjZK95h"><label data-page-node-id="DwaIJb4p3ujrJHDzbQdQyh">开始时间</label><input placeholder="开始时间" data-page-node-id="tECtheAUWQTK3JgNAMNJZh"></div>
+        <div class="cell" data-page-node-id="UX2XjOL1v4OG8FNElnCaY3"><label data-page-node-id="1X5kZUQ6GET4ssPr5lAt3u">结束时间</label><input placeholder="结束时间" data-page-node-id="nz2ojI3PWfzph1YAVVffpN"></div>
+      </div>
+    </div>
+    <button type="button" id="addEdu" data-page-node-id="2fWAFBdVkaFEOULKaHOOOT">＋ 添加教育经历</button>
+  </div>
+</div>
+
+<div class="panel" data-page-node-id="FUJU2J0HQkk7l0oJGOsGPO">
+  <h4 data-page-node-id="8RVTHtCOE7zv9m8Mn1p7P8">5. 项目经历（你的数据有 2 条，页面上只有 1 行 → 插件应自动点「添加」补出第 2 行）</h4>
+  <div class="exp-section" id="secProj" data-page-node-id="OELkYE9419DrL4cNKtlHpx">
+    <h4 data-page-node-id="Roe0SpaANiIqmLErMTZENy">项目经历</h4>
+    <div class="exp-list" id="projList" data-page-node-id="6jdb5blIPF1sL9WAndAc9b">
+      <div class="exp-item" data-page-node-id="hH2uD7tJ6AoArYsJeu9s3e">
+        <div class="cell full" data-page-node-id="S59kGXbyuyEhGLix9sWM5I"><label data-page-node-id="h6bYhzlb5wnHnOZC2RfnvG">项目名称</label><input placeholder="项目名称" data-page-node-id="vFwy6H4c26GkIz68jhRW5g"></div>
+        <div class="cell" data-page-node-id="oqVk5qjbmzaxsEXXalgtHx"><label data-page-node-id="mHnzglpEpsBqxqm1sBkVlE">担任角色</label><input placeholder="担任角色" data-page-node-id="v8pU0TwmB3MNxH8FXMErKF"></div>
+        <div class="cell" data-page-node-id="mtQGUG1Cr0XKi9fiGQx7lZ"><label data-page-node-id="OUwAbGLampvKzPTmxLtPc9">开始时间</label><input placeholder="开始时间" data-page-node-id="r5AO78GFC7k4CjozLlPJjE"></div>
+        <div class="cell full" data-page-node-id="rzCKR4bhhs5WvUqeSfsa0s"><label data-page-node-id="bP2GIIra1OEeiI5i6PjXTY">项目描述</label><textarea rows="2" placeholder="项目描述"></textarea></div>
+      </div>
+    </div>
+    <button type="button" id="addProj" data-page-node-id="x1qqmqV0R7AGWPLfLLzDpH">＋ 添加项目经历</button>
+  </div>
+</div>
+
+<div class="panel" data-page-node-id="B6GHDcHMuqWG5bDcDeErft">
+  <h4 data-page-node-id="d5FjkD3VCemIzPMC6at6GB">6. 简历附件上传框</h4>
+  <div class="row" data-page-node-id="4CS6japkjzgE8JnU1G281d">
+    <label data-page-node-id="XEmV0iit6m5qwbUdrf8qwj">上传简历附件</label>
+    <input type="file" id="wFile" accept=".pdf,.doc,.docx" data-page-node-id="0CQ6b5FD9LWX01BmkXBBAJ">
+  </div>
+</div>
+
+<div class="panel" data-page-node-id="o8k2LVPA3Gx7uIigL1kUXa">
+  <h4 data-page-node-id="c5KrcUAjAkNsCITNXfcsvK">7. 回归：普通原生字段 + 防误填</h4>
+  <div class="row" data-page-node-id="gAvxlCinwG0UC6gfAwcEYd"><label data-page-node-id="K1kdn6CVS7osfLu5HFzlt2">姓名</label><input placeholder="请输入姓名" data-page-node-id="SdHtva4fbocJJTA1XjnTDw"></div>
+  <div class="row" data-page-node-id="hJQO8iAXt2Ep5WRdSNXTif"><label data-page-node-id="GBzMJni4EVCu1ekmFHlhbj">手机号</label><input placeholder="请输入手机号" data-page-node-id="MeLPFGiB108onUMW9OlHcE"></div>
+  <div class="row" data-page-node-id="fvvszF888UaXR1zPZ5Xn2C"><label data-page-node-id="fA38mvW1LQKCsAXCfjPkDI">邮箱</label><input placeholder="请输入邮箱" data-page-node-id="VViTazIHXjGneOgl61PlYx"></div>
+  <div class="row" data-page-node-id="XF2RfjQwYIdUVhGq8i7r7D"><label data-page-node-id="fByR3PBLheP4ASaD1qswO4">密码</label><input type="password" placeholder="请输入密码" data-page-node-id="IOdmAY5oCNEir2L0DtHZ2o"></div>
+  <div class="row" data-page-node-id="spKOLCs2T0QbHvCqHjrHf8"><label data-page-node-id="35VSPUaCNd1TKxfiEqnvnu">验证码</label><input placeholder="请输入手机验证码" data-page-node-id="2RKk13wvP6GD4RHbyTUkIn"></div>
+</div>
+
+<div id="report" data-page-node-id="1ltXf6vyEG5LeibVgeQsB2"><div class="head" data-page-node-id="adcN2lCNlAzeBeh8WofGAk">等待测试…</div></div>
+<h4 data-page-node-id="whmNgemEHyNTgH12hL7MJ0">插件返回的原始结果</h4>
+<pre id="raw" data-page-node-id="OZA9uRWMuobEEXTNmxpJ0S">—</pre>
+
+<!-- ============ 组件库的下拉面板（真实 antd 会挂到 body 下，这里保持一致） ============ -->
+<div class="ant-select-dropdown ant-select-dropdown-hidden" id="wDegreeDD" style="display:none" data-page-node-id="8bQK8h5S2hcGkHVVE7zDbi">
+  <div class="ant-select-item-option" data-v="大专" data-page-node-id="2ug6mdF51aWgGQCfgDh3Qz">大专</div>
+  <div class="ant-select-item-option" data-v="本科" data-page-node-id="zRKb0kTGvYRGBZXWLWqBan">本科</div>
+  <div class="ant-select-item-option" data-v="硕士" data-page-node-id="3X2JVQhhi3sKM1qnym95Ez">硕士</div>
+</div>
+
+<div class="ant-picker-dropdown ant-picker-dropdown-hidden" id="wBirthDD" style="display:none" data-page-node-id="9YsXfGWR3ANvEnY6hk5PHh">
+  <div class="ant-picker-header" data-page-node-id="yTfe3xYlVt75PKbvRICe4d"><button type="button" class="ant-picker-year-btn" data-page-node-id="3rGUMN8HkvmIh85CJpgbX6"></button></div>
+  <div class="ant-picker-body" data-page-node-id="OhgEYCH7j8e2T3fVHG2nGL"></div>
+</div>
+
+<div class="ant-cascader-dropdown ant-cascader-dropdown-hidden" id="wCityDD" style="display:none" data-page-node-id="kYizaQHkJeCa6dwTNcVVY5"></div>
+
+<!-- ============ 模拟组件库行为 ============ -->
+<script>
+// 记录每一次交互，便于排查「插件点了哪里、组件有没有响应」
+window.__trace = [];
+function trace(s) { window.__trace.push(s); }
+
+// 把下拉面板做成 body 下的 portal，和真实 antd 一致
+function portal(id) {
+  const el = document.getElementById(id);
+  if (el) document.body.appendChild(el);
+  return el;
+}
+
+const REGION = {
+  "吉林省": { "长春市": ["南关区", "朝阳区", "绿园区"] },
+  "北京市": { "市辖区": ["朝阳区", "海淀区"] },
+  "广东省": { "深圳市": ["南山区", "福田区"] }
+};
+
+// ---- 模拟 antd Select ----
+function mkSelect(rootId, ddId, textId, placeholder) {
+  const root = document.getElementById(rootId);
+  const dd = portal(ddId);
+  const text = document.getElementById(textId);
+  const input = root.querySelector("input");
+  const state = { value: "" };
+  function render() {
+    text.textContent = state.value;
+    input.placeholder = state.value ? "" : placeholder;
+    dd.querySelectorAll(".ant-select-item-option").forEach(o => {
+      o.classList.toggle("ant-select-item-option-selected", o.dataset.v === state.value);
+    });
+  }
+  function setOpen(v) {
+    dd.classList.toggle("ant-select-dropdown-hidden", !v);
+    dd.style.display = v ? "block" : "none";
+    if (v) {
+      const r = root.getBoundingClientRect();
+      dd.style.left = (r.left + window.scrollX) + "px";
+      dd.style.top = (r.bottom + window.scrollY + 4) + "px";
+    }
+  }
+  // 真实 antd 用 mousedown 打开
+  root.addEventListener("mousedown", e => {
+    e.preventDefault();
+    trace("下拉[" + rootId + "]:根节点 mousedown（打开面板）");
+    setOpen(true);
+  });
+  dd.addEventListener("mousedown", e => {
+    const opt = e.target.closest(".ant-select-item-option");
+    trace("下拉[" + rootId + "]:面板 mousedown，命中选项=" + (opt ? opt.dataset.v : "无") + "，面板当前=" + (dd.style.display === "none" ? "关" : "开"));
+    if (!opt) return;
+    state.value = opt.dataset.v;
+    trace("下拉[" + rootId + "]:选中 " + state.value);
+    render(); setOpen(false);
+  });
+  // 模拟受控组件：直接改 input.value 会被还原
+  ["input", "change"].forEach(t => input.addEventListener(t, () => { input.value = ""; }));
+  render(); setOpen(false);
+  return state;
+}
+
+// ---- 模拟 antd 年月 DatePicker ----
+function mkMonthPicker(rootId, ddId, placeholder) {
+  const root = document.getElementById(rootId);
+  const dd = portal(ddId);
+  const input = root.querySelector("input");
+  const body = dd.querySelector(".ant-picker-body");
+  const yearBtn = dd.querySelector(".ant-picker-year-btn");
+  const months = Array.from({ length: 12 }, (_, i) => (i + 1) + "月");
+  const state = { value: "", view: "month", viewYear: new Date().getFullYear() };
+
+  function render() {
+    input.value = state.value;
+    input.placeholder = state.value ? "" : placeholder;
+    if (state.view === "month") {
+      yearBtn.style.display = "";
+      yearBtn.textContent = state.viewYear;
+      body.innerHTML = months.map(m => '<div class="ant-picker-cell">' + m + '</div>').join("");
+    } else {
+      yearBtn.style.display = "none";
+      const cur = new Date().getFullYear();
+      const ys = [];
+      for (let y = cur; y >= cur - 40; y--) ys.push('<div class="ant-picker-cell">' + y + '</div>');
+      body.innerHTML = ys.join("");
+    }
+  }
+  function setOpen(v) {
+    dd.classList.toggle("ant-picker-dropdown-hidden", !v);
+    dd.style.display = v ? "block" : "none";
+    if (v) {
+      const r = root.getBoundingClientRect();
+      dd.style.left = (r.left + window.scrollX) + "px";
+      dd.style.top = (r.bottom + window.scrollY + 4) + "px";
+    }
+  }
+  yearBtn.addEventListener("mousedown", e => {
+    // 真实 antd 里点年份按钮只切换视图，不会冒泡到根节点把视图重置回月份
+    e.preventDefault();
+    e.stopPropagation();
+    state.view = "year";
+    render();
+  });
+  root.addEventListener("mousedown", e => {
+    e.preventDefault();
+    trace("日期[" + rootId + "]:根节点 mousedown（打开面板，视图重置为月份）");
+    state.view = "month"; render(); setOpen(true);
+  });
+  dd.addEventListener("mousedown", e => {
+    const cell = e.target.closest(".ant-picker-cell");
+    trace("日期[" + rootId + "]:面板 mousedown，命中单元格=" + (cell ? cell.textContent.trim() : "无") + "，视图=" + state.view);
+    if (!cell) return;
+    const t = cell.textContent.trim();
+    if (/^\d{4}$/.test(t)) { state.viewYear = Number(t); state.view = "month"; render(); trace("日期[" + rootId + "]:选中年份 " + t); return; }
+    if (/月$/.test(t)) {
+      const m = String(Number(t.replace("月", ""))).padStart(2, "0");
+      state.value = state.viewYear + "-" + m;
+      trace("日期[" + rootId + "]:选中 " + state.value);
+      render(); setOpen(false);
+    }
+  });
+  // 受控组件：直接赋值会被还原（用来验证插件确实走了「点面板」这条路）
+  ["input", "change"].forEach(t => input.addEventListener(t, () => { input.value = state.value; }));
+  render(); setOpen(false);
+  return state;
+}
+
+// ---- 模拟 antd Cascader ----
+function mkCascader(rootId, ddId, placeholder) {
+  const root = document.getElementById(rootId);
+  const dd = portal(ddId);
+  const input = root.querySelector("input");
+  const state = { value: "", picked: [] };
+
+  function renderColumns() {
+    const cols = [];
+    const lv0 = Object.keys(REGION);
+    cols.push({ items: lv0, level: 0 });
+    if (state.picked[0]) cols.push({ items: Object.keys(REGION[state.picked[0]] || {}), level: 1 });
+    if (state.picked[0] && state.picked[1]) cols.push({ items: (REGION[state.picked[0]] || {})[state.picked[1]] || [], level: 2 });
+    dd.innerHTML = cols.map(c =>
+      '<div class="ant-cascader-menu">' +
+      c.items.map(t => '<div class="ant-cascader-menu-item" data-lv="' + c.level + '">' + t + '</div>').join("") +
+      '</div>'
+    ).join("");
+  }
+  function setOpen(v) {
+    dd.classList.toggle("ant-cascader-dropdown-hidden", !v);
+    dd.style.display = v ? "flex" : "none";
+    if (v) {
+      const r = root.getBoundingClientRect();
+      dd.style.left = (r.left + window.scrollX) + "px";
+      dd.style.top = (r.bottom + window.scrollY + 4) + "px";
+    }
+  }
+  root.addEventListener("mousedown", e => {
+    e.preventDefault();
+    trace("级联[" + rootId + "]:根节点 mousedown（打开面板，重置为第一列）");
+    state.picked = []; renderColumns(); setOpen(true);
+  });
+  dd.addEventListener("mousedown", e => {
+    const item = e.target.closest(".ant-cascader-menu-item");
+    trace("级联[" + rootId + "]:面板 mousedown，命中=" + (item ? item.textContent.trim() + "(lv" + item.dataset.lv + ")" : "无") + "，列数=" + dd.querySelectorAll(".ant-cascader-menu").length);
+    if (!item) return;
+    const lv = Number(item.dataset.lv);
+    const t = item.textContent.trim();
+    state.picked = state.picked.slice(0, lv);
+    state.picked[lv] = t;
+    trace("级联[" + rootId + "]:选中第" + (lv + 1) + "级 " + t);
+    if (lv === 2) {
+      state.value = state.picked.join("");
+      input.value = state.value;
+      trace("级联[" + rootId + "]:完成 " + state.value);
+      setOpen(false);
+      return;
+    }
+    renderColumns();
+  });
+  ["input", "change"].forEach(t => input.addEventListener(t, () => { input.value = state.value; }));
+  renderColumns(); setOpen(false);
+  return state;
+}
+
+mkSelect("wDegree", "wDegreeDD", "wDegreeText", "请选择最高学历");
+mkMonthPicker("wBirth", "wBirthDD", "请选择出生年月");
+mkCascader("wCity", "wCityDD", "请选择现居地");
+
+// ---- 经历块：点「添加」复制一行 ----
+function bindAdd(btnId, listId, templateFn) {
+  document.getElementById(btnId).addEventListener("click", () => {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = templateFn();
+    document.getElementById(listId).appendChild(wrap.firstElementChild);
+  });
+}
+bindAdd("addEdu", "eduList", () => document.querySelector("#eduList .exp-item").outerHTML);
+bindAdd("addProj", "projList", () => document.querySelector("#projList .exp-item").outerHTML);
+
+// ---- 模拟扩展环境 ----
+window.chrome = {
+  runtime: { onMessage: { addListener: function (fn) { window.__listener = fn; } } },
+  storage: {
+    local: {
+      get: function () { return Promise.resolve({ settings: { autoFill: false } }); },
+      set: function () {}
+    }
+  }
+};
+</script>
+
+<!-- ============ 加载插件本体 ============ -->
+<script src="../content/lexicon.js"></script>
+<script src="../content/matcher.js"></script>
+<script src="../content/sites.js"></script>
+<script src="../content/widgets.js"></script>
+<script src="../content/blocks.js"></script>
+<script src="../content/content.js"></script>
+
+<!-- ============ 跑测试 ============ -->
+<script>
+const TEST_ATTACHMENT = {
+  name: "张三-机械设计.pdf",
+  type: "application/pdf",
+  size: 24,
+  dataUrl: "data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsOfCg=="
+};
+
+const DATA = {
+  name: "张三",
+  phone: "13900000002",
+  email: "example@example.com",
+  degree: "本科",
+  birth: "2005-05",
+  current_residence: "吉林省长春市南关区"
+};
+
+const BLOCKS = {
+  education: [{
+    school: "长春理工大学", major: "机械设计制造及其自动化", degree: "本科",
+    college: "机电工程学院", start: "2023.09", end: "至今", gpa: "", ranking: "前25%"
+  }],
+  project: [
+    { name: "一种无人机用应急降落装置", role: "实用新型专利", start: "", end: "", desc: "设计被动触发式应急缓冲降落机构" },
+    { name: "机械传动性能分析平台V1.0", role: "软件著作权", start: "", end: "", desc: "独立开发并完成著作权登记" }
+  ]
+};
+
+function val(el) { return el ? (el.value === undefined ? el.textContent : el.value) : "(缺失)"; }
+function pct() {
+  document.getElementById("raw").textContent = JSON.stringify(window.__lastResp, null, 2);
+}
+
+// 等页面完全加载（布局完成）后再触发填写 —— 和真实使用一致：
+// 用户打开招聘页面、等它渲染完，再点「立即填写」。
+function runFillTest() {
+window.__listener(
+  { type: "FILL_PAGE", data: DATA, mode: "manual", blocks: BLOCKS, attachment: TEST_ATTACHMENT,
+    options: { skipFilled: true, deepFill: true, autoAttach: true } },
+  null,
+  function (resp) {
+    window.__lastResp = resp;
+    const checks = [];
+
+    const degreeText = document.getElementById("wDegreeText").textContent.trim();
+    checks.push({ name: "非原生下拉（学历）", expect: "本科", got: degreeText, ok: degreeText === "本科" });
+
+    const birth = document.querySelector("#wBirth input").value;
+    checks.push({ name: "日期选择器（出生年月）", expect: "2005-05", got: birth, ok: birth === "2005-05" });
+
+    const city = document.querySelector("#wCity input").value;
+    checks.push({ name: "省市区三级级联（现居地）", expect: "吉林省长春市南关区", got: city, ok: city === "吉林省长春市南关区" });
+
+    const eduItems = document.querySelectorAll("#eduList .exp-item");
+    const eduSchool = eduItems[0] ? eduItems[0].querySelectorAll("input")[0].value : "(缺失)";
+    checks.push({ name: "教育经历行数（应为 1）", expect: "1", got: String(eduItems.length), ok: eduItems.length === 1 });
+    checks.push({ name: "教育经历-学校名称", expect: "长春理工大学", got: eduSchool, ok: eduSchool === "长春理工大学" });
+
+    const projItems = document.querySelectorAll("#projList .exp-item");
+    checks.push({ name: "项目经历自动增行（1 → 2）", expect: "2", got: String(projItems.length), ok: projItems.length === 2 });
+    const p2name = projItems[1] ? projItems[1].querySelector("input").value : "(缺失)";
+    checks.push({ name: "第 2 条项目名称", expect: "机械传动性能分析平台V1.0", got: p2name, ok: p2name === "机械传动性能分析平台V1.0" });
+
+    const f = document.getElementById("wFile");
+    const fname = f.files && f.files.length ? f.files[0].name : "(空)";
+    checks.push({ name: "简历附件上传", expect: TEST_ATTACHMENT.name, got: fname, ok: fname === TEST_ATTACHMENT.name });
+
+    const nameV = document.querySelector('input[placeholder="请输入姓名"]').value;
+    checks.push({ name: "回归：原生字段-姓名", expect: "张三", got: nameV, ok: nameV === "张三" });
+    const pwd = document.querySelector('input[type="password"]').value;
+    checks.push({ name: "防误填：密码框必须为空", expect: "空", got: pwd ? "被填了！" : "空", ok: !pwd });
+    const cap = document.querySelector('input[placeholder="请输入手机验证码"]').value;
+    checks.push({ name: "防误填：验证码框必须为空", expect: "空", got: cap ? "被填了！" : "空", ok: !cap });
+
+    const pass = checks.filter(c => c.ok).length;
+    const all = checks.length;
+    const head = document.querySelector("#report .head");
+    head.className = "head " + (pass === all ? "pass" : "fail");
+    head.textContent = (pass === all ? "全部通过 " : "存在失败项 ") + pass + " / " + all;
+
+    document.querySelectorAll("#report table").forEach(t => t.remove());
+    const table = document.createElement("table");
+    table.innerHTML = checks.map(c =>
+      '<tr class="' + (c.ok ? "ok" : "no") + '">' +
+      '<td class="r">' + (c.ok ? "✓" : "✗") + '</td>' +
+      '<td>' + c.name + '</td>' +
+      '<td class="exp">期望：' + c.expect + '</td>' +
+      '<td class="got">实际：' + c.got + '</td>' +
+      '</tr>'
+    ).join("");
+    document.getElementById("report").appendChild(table);
+    pct();
+    // 给自动化脚本（test/run-page.js）一个「跑完了」的标记
+    document.body.dataset.jianliDone = "1";
+  }
+);
+}
+
+if (document.readyState === "complete") setTimeout(runFillTest, 300);
+else window.addEventListener("load", () => setTimeout(runFillTest, 300));
+</script>
+</body>
+</html>

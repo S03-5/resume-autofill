@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:,">
+<title>第二步验证：悬浮球 / 只填空白框 / 撤销 / 战报浮层</title>
+<style>
+  body {
+    margin: 0; padding: 16px 18px 120px;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f8fafc; color: #0f172a; font-size: 14px;
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { color: #64748b; font-size: 12.5px; margin-bottom: 12px; }
+  #summary {
+    position: sticky; top: 0; z-index: 10;
+    padding: 11px 14px; border-radius: 9px; font-weight: 700; font-size: 14px;
+    background: #e2e8f0; margin-bottom: 12px;
+  }
+  #summary.pass { background: #dcfce7; color: #15803d; }
+  #summary.fail { background: #fee2e2; color: #b91c1c; }
+  .item {
+    display: flex; gap: 9px; align-items: flex-start;
+    padding: 6px 10px; border-radius: 7px; margin-bottom: 3px;
+    background: #fff; border: 1px solid #e2e8f0; font-size: 13px;
+  }
+  .item .mk { flex: 0 0 auto; font-weight: 700; }
+  .item.pass .mk { color: #16a34a; }
+  .item.fail .mk { color: #dc2626; }
+  .item.fail { background: #fef2f2; border-color: #fecaca; }
+  .item .dt { color: #64748b; font-size: 12px; margin-left: 4px; }
+  .group-title { margin: 14px 0 6px; font-size: 12px; font-weight: 700; color: #94a3b8; }
+  form {
+    margin-top: 20px; padding: 14px 16px; background: #fff;
+    border: 1px solid #e2e8f0; border-radius: 10px; max-width: 520px;
+  }
+  form h2 { font-size: 13px; margin: 0 0 10px; color: #334155; }
+  .fm { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .fm label { flex: 0 0 88px; font-size: 12.5px; color: #475569; }
+  .fm input, .fm select, .fm textarea {
+    flex: 1; padding: 6px 9px; border: 1px solid #cbd5e1; border-radius: 6px;
+    font-size: 13px; font-family: inherit;
+  }
+  .fm textarea { min-height: 56px; resize: vertical; }
+</style>
+</head>
+<body>
+<h1>第二步验证：交互摩擦优化</h1>
+<div class="sub">
+  本页会自动 mock 扩展 API、加载真实的内容脚本、并在下面的模拟表单上跑一遍完整填写流程。
+  全部通过 = 悬浮球、只填空白框、撤销、战报浮层四件事都正常。
+</div>
+<div id="summary">正在运行…</div>
+<div id="list"></div>
+
+<form id="mockForm" autocomplete="off">
+  <h2>模拟招聘网站的简历表单</h2>
+  <div class="fm"><label>姓名</label><input type="text" name="candidateName" placeholder="请输入姓名"></div>
+  <div class="fm"><label>手机号码</label><input type="text" name="mobile" placeholder="请输入手机号"></div>
+  <div class="fm"><label>电子邮箱</label><input type="text" name="mail" placeholder="请输入邮箱"></div>
+  <div class="fm"><label>籍贯</label><input type="text" id="preFilled" name="nativePlace" placeholder="请输入籍贯" value="我不想被覆盖"></div>
+  <div class="fm">
+    <label>政治面貌</label>
+    <select name="politicalStatus">
+      <option value="">请选择</option>
+      <option>群众</option>
+      <option>中共党员</option>
+      <option>中共预备党员</option>
+    </select>
+  </div>
+  <div class="fm"><label>户口性质</label><input type="text" aria-label="户口性质" placeholder="请输入户口性质"></div>
+  <div class="fm"><label>期望职位</label><input type="text" name="expectPosition" placeholder="请输入期望职位"></div>
+  <div class="fm"><label>自我评价</label><textarea name="selfComment" placeholder="请输入自我评价"></textarea></div>
+</form>
+
+<script src="../content/lexicon.js"></script>
+<script src="../content/matcher.js"></script>
+<script src="../content/sites.js"></script>
+<script src="../content/widgets.js"></script>
+<script src="../content/blocks.js"></script>
+<script src="../content/hud.js"></script>
+
+<script>
+// ============================================================
+// 1. mock 扩展 API（在 content.js 之前定义，因为它加载时会立即调用）
+// ============================================================
+const RESUME = {
+  name: "测试同学",
+  phone: "13800000000",
+  email: "test@example.com",
+  hometown: "河北石家庄",
+  gender: "男",
+  city: "北京",
+  position: "机械结构工程师",
+  salary: "",
+  political: "共青团员",     // 页面下拉里没有这个选项 → 应当出现在「没填上」
+  school: "某某大学",
+  degree: "本科",
+  major: "机械工程"
+};
+
+const MOCK = {
+  settings: {
+    autoFill: false,
+    skipFilled: true,
+    showHud: true,
+    deepFill: false,      // 本页控件都是原生的，不需要深度填充
+    autoAttach: false,
+    hotkey: "command"
+  },
+  resumeData: RESUME,
+  blocks: undefined,
+  attachment: null,
+  customFields: [],
+  hudPos: null
+};
+
+const storageListeners = [];
+const messageListeners = [];
+
+function pickKeys(keys) {
+  const out = {};
+  if (!keys) return Object.assign({}, MOCK);
+  if (typeof keys === "string") { out[keys] = MOCK[keys]; return out; }
+  if (Array.isArray(keys)) { keys.forEach(k => { out[k] = MOCK[k]; }); return out; }
+  Object.keys(keys).forEach(k => { out[k] = (MOCK[k] === undefined) ? keys[k] : MOCK[k]; });
+  return out;
+}
+
+window.chrome = {
+  runtime: {
+    getManifest: () => ({ version: "2.0.0-test" }),
+    onMessage: { addListener: fn => messageListeners.push(fn) },
+    sendMessage: () => {}
+  },
+  storage: {
+    local: {
+      get: keys => Promise.resolve(pickKeys(keys)),
+      set: (obj, cb) => {
+        Object.assign(MOCK, obj);
+        if (typeof cb === "function") cb();
+        // 让 onChanged 也收到通知，跟真实扩展行为一致
+        const changes = {};
+        Object.keys(obj).forEach(k => { changes[k] = { newValue: obj[k] }; });
+        storageListeners.forEach(fn => { try { fn(changes, "local"); } catch (e) { /* ignore */ } });
+      }
+    },
+    onChanged: { addListener: fn => storageListeners.push(fn) }
+  }
+};
+</script>
+
+<script src="../content/content.js"></script>
+
+<script>
+// ============================================================
+// 2. 断言框架
+// ============================================================
+const results = [];
+const listEl = document.getElementById("list");
+let groupEl = null;
+
+// 任何未捕获的错误都记下来，方便排查（而不是让页面静悄悄卡住）
+const pageErrors = [];
+window.addEventListener("error", e => pageErrors.push("error: " + e.message));
+window.addEventListener("unhandledrejection", e => {
+  pageErrors.push("rejection: " + ((e.reason && e.reason.message) || e.reason));
+});
+window.__jianliTestErrors = pageErrors;
+
+function group(title) {
+  groupEl = document.createElement("div");
+  groupEl.className = "group-title";
+  groupEl.textContent = title;
+  listEl.appendChild(groupEl);
+}
+
+function check(name, pass, detail) {
+  results.push(pass);
+  const div = document.createElement("div");
+  div.className = "item " + (pass ? "pass" : "fail");
+  const mk = document.createElement("span");
+  mk.className = "mk";
+  mk.textContent = pass ? "✓" : "✗";
+  const nm = document.createElement("span");
+  nm.textContent = name;
+  if (detail) {
+    const dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = "（" + detail + "）";
+    nm.appendChild(dt);
+  }
+  div.appendChild(mk);
+  div.appendChild(nm);
+  (groupEl || listEl).appendChild(div);
+  updateSummary();
+}
+
+function updateSummary() {
+  const s = document.getElementById("summary");
+  const bad = results.filter(r => !r).length;
+  if (bad === 0) {
+    s.className = "pass";
+    s.textContent = "✓ 全部通过 " + results.length + " / " + results.length;
+  } else {
+    s.className = "fail";
+    s.textContent = "✗ 存在失败项 " + bad + " / " + results.length + "（红色那几行）";
+  }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// 走内容脚本的消息监听器触发填写，等价于弹窗/悬浮球的操作
+function send(msg) {
+  return new Promise(resolve => {
+    let settled = false;
+    const done = r => { if (!settled) { settled = true; resolve(r); } };
+    for (const fn of messageListeners) {
+      try { fn(msg, {}, done); } catch (e) { /* 单个监听器异常不影响其他 */ }
+    }
+    setTimeout(() => done({ ok: false, reason: "内容脚本没有响应" }), 10000);
+  });
+}
+
+function setSettings(patch) {
+  MOCK.settings = Object.assign({}, MOCK.settings, patch);
+  storageListeners.forEach(fn => fn({ settings: { newValue: MOCK.settings } }, "local"));
+}
+
+function hudHost() { return document.getElementById("jianli-hud-host"); }
+function hudShadow() { const h = hudHost(); return h ? h.shadowRoot : null; }
+function ballEl() { const s = hudShadow(); return s ? s.querySelector(".ball") : null; }
+function reportEl() { const s = hudShadow(); return s ? s.querySelector(".report") : null; }
+function menuEl() { const s = hudShadow(); return s ? s.querySelector(".menu") : null; }
+function rpItems() { const r = reportEl(); return r ? Array.from(r.querySelectorAll(".rp-item")) : []; }
+function rpText() { const r = reportEl(); return r ? r.textContent : ""; }
+
+// 判断"用户到底看不看得见"，而不是"hidden 属性是不是 true"。
+// 战报浮层的样式里声明了 display:flex，而 [hidden]{display:none} 来自 UA 样式表会被它盖掉，
+// 只断言 hidden 属性会得到「假通过」（线上表现为浮层关不掉、点选面板收不回去）。
+function vis(el) {
+  if (!el) return false;
+  const cs = getComputedStyle(el);
+  if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+}
+
+function key(el) { return (el.name || el.id || el.getAttribute("aria-label") || ""); }
+function byName(n) { return document.querySelector('[name="' + n + '"]'); }
+
+// ============================================================
+// 3. 测试
+// ============================================================
+(async function run() {
+ try {
+  // 等内容脚本的初始化（读 storage → 注册动作 → 挂载悬浮球）跑完
+  await sleep(300);
+
+  // ---------- A. 悬浮球 ----------
+  group("A. 悬浮球");
+
+  const ball = ballEl();
+  check("表单页上自动出现悬浮球", !!ball, ball ? "" : "没找到 #jianli-hud-host 或 .ball");
+
+  if (ball) {
+    const r = ball.getBoundingClientRect();
+    const nearRight = Math.abs((window.innerWidth - r.right) - 14) < 3;
+    const nearBottom = Math.abs((window.innerHeight - r.bottom) - 14) < 3;
+    check("悬浮球默认停在右下角", nearRight && nearBottom, `right=${Math.round(window.innerWidth - r.right)} bottom=${Math.round(window.innerHeight - r.bottom)}`);
+  } else {
+    check("悬浮球默认停在右下角", false, "悬浮球不存在");
+  }
+
+  // 点一下（不拖动）应展开动作菜单
+  if (ball) {
+    const r = ball.getBoundingClientRect();
+    ball.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 1, clientX: r.left + 20, clientY: r.top + 20 }));
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, pointerId: 1, clientX: r.left + 20, clientY: r.top + 20 }));
+    await sleep(60);
+    const m = menuEl();
+    const txt = m ? m.textContent : "";
+    check("点一下悬浮球会展开动作菜单", vis(m), m ? ("display=" + getComputedStyle(m).display) : "菜单不存在");
+    check("菜单里有「填写当前页面」和「撤销上次填写」",
+      txt.includes("填写当前页面") && txt.includes("撤销上次填写"), txt.slice(0, 40));
+    if (vis(m)) {
+      // 收起来，避免挡住后面的点击
+      ball.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 2, clientX: r.left + 20, clientY: r.top + 20 }));
+      window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, pointerId: 2, clientX: r.left + 20, clientY: r.top + 20 }));
+      await sleep(60);
+    }
+  }
+
+  // 拖动换位置
+  if (ball) {
+    const before = ball.getBoundingClientRect();
+    const sx = before.left + 20, sy = before.top + 20;
+    ball.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 3, clientX: sx, clientY: sy }));
+    window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 3, clientX: sx - 130, clientY: sy - 90 }));
+    await sleep(40);
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, pointerId: 3, clientX: sx - 130, clientY: sy - 90 }));
+    await sleep(620); // 位置记忆有 400ms 去抖
+    const after = ball.getBoundingClientRect();
+    const movedX = Math.round(before.left - after.left);
+    const movedY = Math.round(before.top - after.top);
+    check("拖动悬浮球能换位置", movedX > 100 && movedY > 60, `向左 ${movedX}px、向上 ${movedY}px`);
+    check("拖动后位置被记住（写入 storage）", !!(MOCK.hudPos && MOCK.hudPos.x > 0), MOCK.hudPos ? `x=${Math.round(MOCK.hudPos.x)}, y=${Math.round(MOCK.hudPos.y)}` : "storage 里没有 hudPos");
+  }
+
+  // ---------- B. 填写 + 战报 ----------
+  group("B. 填写与战报浮层");
+
+  const res = await send({ type: "HUD_FILL" });
+  await sleep(150);
+  check("填写返回成功", !!(res && res.ok), res && res.reason ? res.reason : "");
+  check("姓名被填入", byName("candidateName").value === "测试同学", "实际值：" + JSON.stringify(byName("candidateName").value));
+  check("手机号 / 邮箱被填入",
+    byName("mobile").value === "13800000000" && byName("mail").value === "test@example.com",
+    byName("mobile").value + " / " + byName("mail").value);
+
+  const rEl = reportEl();
+  check("填写后自动弹出战报浮层", vis(rEl), rEl ? ("display=" + getComputedStyle(rEl).display) : "战报没出现");
+  check("战报显示「已填 N」并计数正确",
+    rpText().includes("已填") && rpText().includes(String(res.filled)),
+    "战报文字：" + rpText().replace(/\s+/g, " ").slice(0, 60));
+
+  const items = rpItems();
+  check("战报列出了填失败的字段（政治面貌）",
+    items.some(i => i.textContent.includes("政治面貌")), "共 " + items.length + " 条");
+  const reasonShown = rpText().includes("选项里没有") || rpText().includes("没有找到选项");
+  check("失败项带上了具体原因", reasonShown, reasonShown ? "文案已显示" : "原因没显示出来");
+  check("战报列出了没认出来的空白框（户口性质）",
+    items.some(i => i.textContent.includes("户口性质")), "共 " + items.length + " 条");
+
+  // 点「定位」应把对应控件高亮
+  const target = items.find(i => i.textContent.includes("户口性质"));
+  if (target) {
+    const el = document.querySelector('[aria-label="户口性质"]');
+    target.click();
+    await sleep(60);
+    const o = el.style.outline || "";
+    // 浏览器会把 outline 规范化成 "rgb(...) solid 3px"，所以只检查关键字
+    check("点战报里的条目会高亮对应控件", o.includes("solid") && o.includes("3px"), "outline=" + (o || "空"));
+  } else {
+    check("点战报里的条目会高亮对应控件", false, "没有找到户口性质那一条");
+  }
+
+  // ---------- C. 只填空白框 ----------
+  group("C. 只填空白框");
+
+  check("页面上已有的「籍贯」没有被覆盖（skipFilled 默认开启）",
+    document.getElementById("preFilled").value === "我不想被覆盖",
+    "实际值：" + JSON.stringify(document.getElementById("preFilled").value));
+  check("空白框「期望职位」被填上",
+    byName("expectPosition").value === "机械结构工程师",
+    "实际值：" + JSON.stringify(byName("expectPosition").value));
+
+  // ---------- D. 撤销 ----------
+  group("D. 一键撤销");
+
+  const undo = await send({ type: "UNDO_FILL" });
+  await sleep(80);
+  check("撤销返回成功", !!(undo && undo.ok), undo && undo.reason ? undo.reason : "");
+  check("姓名恢复成填写前的空值", byName("candidateName").value === "", "实际值：" + JSON.stringify(byName("candidateName").value));
+  check("邮箱也一起恢复了", byName("mail").value === "", "实际值：" + JSON.stringify(byName("mail").value));
+  const leftover = byName("candidateName").getAttribute("data-jianli-filled");
+  check("撤销后绿色高亮标记被清除", leftover === null, leftover === null ? "标记已清除" : "还残留：" + leftover);
+  check("撤销后战报浮层自动收起", !vis(reportEl()), vis(reportEl()) ? "战报还开着" : "已收起（display=" + (reportEl() ? getComputedStyle(reportEl()).display : "无") + "）");
+
+  const undoAgain = await send({ type: "UNDO_FILL" });
+  check("重复撤销会给出明确提示，而不是静默失败",
+    !!(undoAgain && !undoAgain.ok && undoAgain.reason), "返回：" + JSON.stringify(undoAgain && undoAgain.reason));
+
+  // ---------- E. 关掉「只填空白框」 ----------
+  group("E. 关掉「只填空白框」后允许覆盖");
+
+  document.getElementById("preFilled").value = "我不想被覆盖";
+  setSettings({ skipFilled: false });
+  await sleep(60);
+  await send({ type: "HUD_FILL" });
+  await sleep(120);
+  check("关闭开关后，已有内容会被覆盖成简历里的籍贯",
+    document.getElementById("preFilled").value === "河北石家庄",
+    "实际值：" + JSON.stringify(document.getElementById("preFilled").value));
+  setSettings({ skipFilled: true });
+  await send({ type: "UNDO_FILL" });
+  await sleep(80);
+
+  // ---------- F. 自定义快捷键 ----------
+  group("F. 自定义快捷键");
+
+  byName("candidateName").value = "";
+  setSettings({ hotkey: "alt+q" });
+  await sleep(60);
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "q", altKey: true, bubbles: true, cancelable: true }));
+  await sleep(400);
+  check("快捷键设为 Alt+Q 时，按 Alt+Q 能触发填写",
+    byName("candidateName").value === "测试同学",
+    "实际值：" + JSON.stringify(byName("candidateName").value));
+
+  await send({ type: "UNDO_FILL" });
+  await sleep(80);
+  byName("candidateName").value = "";
+  setSettings({ hotkey: "command" });
+  await sleep(60);
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "q", altKey: true, bubbles: true, cancelable: true }));
+  await sleep(400);
+  check("快捷键设为浏览器默认时，Alt+Q 不会被误触发",
+    byName("candidateName").value === "",
+    "实际值：" + JSON.stringify(byName("candidateName").value));
+
+ } catch (e) {
+  check("测试脚本没有中途崩溃", false, e && e.message ? e.message : String(e));
+ }
+ document.body.dataset.jianliDone = "1";
+ updateSummary();
+})();
+</script>
+</body>
+</html>

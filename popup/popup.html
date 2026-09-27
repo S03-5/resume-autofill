@@ -2,33 +2,160 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>简历助手V1.1</title>
+  <title>简历助手</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <header>
-    <div class="title">📋 简历助手V1.1</div>
+    <div class="title" id="appTitle">📋 简历助手</div>
     <div class="header-btns">
       <button id="fillBtn" class="primary">⚡ 立即填写当前页面</button>
+      <button id="undoBtn" class="ghost icon-btn" title="撤销上次填写，恢复填写前的原值（快捷键 Ctrl+Shift+Z）">↩</button>
       <button id="openWinBtn" class="ghost icon-btn" title="在独立窗口中打开，点击页面外部不会自动关闭">⧉</button>
       <button id="closeBtn" class="ghost icon-btn" title="关闭">✕</button>
     </div>
   </header>
 
   <div id="status" class="status hidden"></div>
-  <div id="siteHint" class="site-hint">正在检测当前页面…</div>
+  <div id="siteHint" class="site-hint fold-line" title="">正在检测当前页面…</div>
 
-  <details id="importBox" class="import-box">
-    <summary>📥 简历识别：粘贴简历全文，自动填入（新用户不用逐项填写）</summary>
-    <p class="import-hint">从你的 Word / PDF 简历里复制全文粘贴到下面，或导入 .txt 文件，插件会自动识别并填入空白字段。</p>
-    <textarea id="resumeText" placeholder="在这里粘贴简历全文…"></textarea>
-    <div class="import-actions">
-      <button id="recognizeBtn" class="ghost">🔍 识别简历</button>
-      <button id="importTxtBtn" class="ghost">📄 导入文件（txt/docx/pdf）</button>
-      <input type="file" id="txtFile" accept=".txt,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+  <div class="profile-bar">
+    <span class="pb-label">简历方案</span>
+    <select id="profileSelect" title="切换方案：字段数据、经历块、简历附件都会跟着换成这一套"></select>
+    <input id="profileNameInput" class="pb-input" type="text" maxlength="30" placeholder="方案名称" hidden>
+    <button id="profileNewBtn" class="pb-btn" title="新建一套空白方案">＋</button>
+    <button id="profileDupBtn" class="pb-btn" title="复制当前方案（复制字段与经历块，附件共用同一份不占双倍空间）">⧉</button>
+    <button id="profileRenameBtn" class="pb-btn" title="重命名当前方案">✎</button>
+    <button id="profileDelBtn" class="pb-btn danger" title="删除当前方案">🗑</button>
+  </div>
+  <div id="profileHint" class="profile-hint fold-line" title="">正在读取简历方案…</div>
+
+  <details id="moreBox" class="more-box">
+    <summary>
+      <span class="mb-name">⚙️ 更多设置</span>
+      <span class="mb-sub">简历识别 · 附件 · 填写选项 · 字段记忆 · 投递台账</span>
+    </summary>
+    <div class="more-body">
+
+      <details id="importBox" class="import-box sub-box">
+        <summary>📥 简历识别：粘贴简历全文，自动填入（新用户不用逐项填写）</summary>
+        <p class="import-hint">最稳的方式：在 Word 里 Ctrl+A 全选、Ctrl+C 复制，粘贴到下面 —— 格式不会丢。也可以导入 .txt / .docx / .pdf 文件，插件会自动认出文件编码（UTF-8 / GBK / UTF-16）并填入空白字段。旧格式 .doc / .rtf 读不了，请先另存为 .docx 或直接复制粘贴。</p>
+        <textarea id="resumeText" placeholder="在这里粘贴简历全文…"></textarea>
+        <div class="import-actions">
+          <button id="recognizeBtn" class="ghost">🔍 识别简历</button>
+          <button id="importTxtBtn" class="ghost">📄 导入文件（txt/docx/pdf）</button>
+          <input type="file" id="txtFile" accept=".txt,.docx,.pdf,.doc,.rtf,text/plain,application/pdf,application/msword,application/rtf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+        </div>
+        <pre id="recognizeOut" class="recognize-out" hidden></pre>
+        <button id="applyRecognizeBtn" class="ghost" hidden>✓ 应用到简历数据（只填充空白字段）</button>
+      </details>
+
+      <details id="attachBox" class="import-box sub-box">
+        <summary>📎 简历附件：让插件帮你自动上传到招聘网站的附件框</summary>
+        <p class="import-hint">附件是<b>跟着方案走</b>的：「嵌入式岗」方案传这份 PDF，「算法岗」方案可以传另一份。上传一次，之后填写表单时如果页面有附件上传框，插件会自动塞进去，不用每次手动选。</p>
+        <div class="import-actions">
+          <button id="attachBtn" class="ghost">📎 选择简历文件</button>
+          <button id="attachDelBtn" class="ghost danger" hidden>删除附件</button>
+          <input type="file" id="attachFile" accept=".pdf,.doc,.docx,.jpg,.png" hidden>
+        </div>
+        <div id="attachInfo" class="attach-info">尚未上传附件</div>
+      </details>
+
+      <details id="settingsBox" class="import-box sub-box">
+        <summary>⚙️ 填写选项</summary>
+        <label class="switch-row">
+          <input type="checkbox" id="optSkipFilled">
+          <span>只填空白框（不覆盖页面上已经填好的内容）</span>
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="optDeepFill">
+          <span>深度填充组件型控件（非原生下拉 / 日期 / 省市区级联）</span>
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="optAutoAttach">
+          <span>自动上传上面配置的简历附件</span>
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="optShowHud">
+          <span>在表单页显示右下角悬浮球（拖动可换位置，点开可填写/撤销）</span>
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="autoFill">
+          <span>进入已适配招聘网站时自动填写</span>
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="optUseMemory">
+          <span>优先使用字段记忆（你手动纠正过的框，命中优先级高于站点适配器）</span>
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="optInferPosition">
+          <span>按当前岗位自动调整「期望职位 / 期望城市」（从岗位页标题里读，会覆盖你填的值）</span>
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="optLedgerPrompt">
+          <span>检测到投递成功页时问一句，要不要记进投递台账</span>
+        </label>
+        <div class="field-row">
+          <label for="optHotkey">填写快捷键</label>
+          <select id="optHotkey">
+            <option value="command">Ctrl+Shift+F（浏览器级，默认）</option>
+            <option value="alt+shift+f">Alt+Shift+F</option>
+            <option value="alt+q">Alt+Q</option>
+            <option value="ctrl+shift+u">Ctrl+Shift+U</option>
+            <option value="off">不使用快捷键</option>
+          </select>
+        </div>
+        <p class="import-hint">如果某个网站的站内快捷键和默认键冲突，换成 Alt 组合键即可（默认的 Ctrl+Shift+F 由浏览器接管，不会和页面冲突）。撤销的快捷键固定为 Ctrl+Shift+Z。</p>
+      </details>
+
+      <details id="memoryBox" class="import-box sub-box">
+        <summary>🧠 字段记忆：你纠正过的框，下次自动认出来</summary>
+        <p class="import-hint">
+          页面右下角小球里点「记住」，或者在下面点「点选页面元素」，就能告诉插件某个框对应简历里的哪个字段。
+          记下来的映射存在本机，优先级高于站点适配器和智能识别；招聘网站改版后也不用等我改代码，你自己就能修。
+        </p>
+        <div class="import-actions">
+          <button id="pickBtn" class="ghost">🎯 点选页面元素生成适配器</button>
+          <button id="memCopyBtn" class="ghost">📋 复制本站适配器代码</button>
+          <button id="memClearHostBtn" class="ghost danger">清空当前站点</button>
+          <button id="memClearAllBtn" class="ghost danger">清空全部</button>
+        </div>
+        <div id="memorySummary" class="attach-info">尚未读取字段记忆</div>
+        <div id="memoryList" class="memory-list"></div>
+      </details>
+
+      <details id="ledgerBox" class="import-box sub-box">
+        <summary>📝 投递台账：记下投过哪家、什么状态、用的哪套简历</summary>
+        <p class="import-hint">
+          在招聘网站页面右下角的小球里点「记一笔投递」，就能把当前页面的公司和岗位记下来；检测到投递成功页时也会弹一句问你。
+          同一条岗位链接不会重复记录。数据只存在你自己电脑上，随时可以导出成 CSV 用 Excel 打开。
+        </p>
+        <div id="ledgerStats" class="attach-info">正在读取台账…</div>
+        <div class="import-actions">
+          <button id="ledgerAddBtn" class="ghost">＋ 把当前页记进台账</button>
+          <button id="ledgerManualBtn" class="ghost">✎ 手动加一条</button>
+          <button id="ledgerCsvBtn" class="ghost">📤 导出 CSV</button>
+          <button id="ledgerClearBtn" class="ghost danger">清空台账</button>
+        </div>
+        <div id="ledgerAddForm" class="ledger-add" hidden>
+          <div class="lg-add-row">
+            <input id="ledgerNewCompany" type="text" placeholder="公司名称（必填）">
+            <input id="ledgerNewPosition" type="text" placeholder="岗位名称">
+          </div>
+          <div class="lg-add-row">
+            <input id="ledgerNewCity" type="text" placeholder="城市">
+            <button id="ledgerNewSave" class="ghost">保存</button>
+            <button id="ledgerNewCancel" class="ghost">取消</button>
+          </div>
+        </div>
+        <div class="lg-filter">
+          <select id="ledgerFilter"><option value="">全部状态</option></select>
+          <input id="ledgerSearch" type="text" placeholder="搜公司 / 岗位 / 备注">
+        </div>
+        <div id="ledgerList" class="ledger-list"></div>
+      </details>
+
     </div>
-    <pre id="recognizeOut" class="recognize-out" hidden></pre>
-    <button id="applyRecognizeBtn" class="ghost" hidden>✓ 应用到简历数据（只填充空白字段）</button>
   </details>
 
   <div class="toolbar">
@@ -37,12 +164,7 @@
     <span id="scanSummary" class="scan-summary"></span>
   </div>
   <textarea id="scanOut" class="scan-out" readonly hidden
-    placeholder="点“扫描本页字段”后，这里会列出页面上的所有可填字段（含标签、placeholder、匹配到的插件字段）。"></textarea>
-
-  <label class="switch-row">
-    <input type="checkbox" id="autoFill">
-    <span>自动填写：进入支持的招聘网站简历页时自动填写</span>
-  </label>
+    placeholder="点“扫描本页字段”后，这里会列出页面上的所有可填字段（含标签、placeholder、控件类型、匹配到的插件字段）。"></textarea>
 
   <main id="form"></main>
 
@@ -55,7 +177,10 @@
   </footer>
 
   <script src="../content/sites.js"></script>
+  <script src="../user-defaults.js"></script>
   <script src="../defaults.js"></script>
+  <script src="../profiles.js"></script>
+  <script src="../content/ledger.js"></script>
   <script src="fileparse.js"></script>
   <script src="recognize.js"></script>
   <script src="popup.js"></script>

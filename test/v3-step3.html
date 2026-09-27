@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="tkRemisp2oeAewx9Q9lKGH">
+<head data-page-node-id="h7EDSbvI63N3kkErO3hcPn">
+<meta charset="UTF-8" data-page-node-id="iA12x8uJ9GmbcoqPjVPpBv">
+<link rel="icon" href="data:," data-page-node-id="sAxjAuVWaiCdXigtl8rjQz">
+<title>第三步验证：字段记忆 / 记住这个框 / 点选生成适配器</title>
+<style>
+  body {
+    margin: 0; padding: 16px 18px 140px;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f8fafc; color: #0f172a; font-size: 14px;
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { color: #64748b; font-size: 12.5px; margin-bottom: 12px; }
+  #summary {
+    position: sticky; top: 0; z-index: 10;
+    padding: 11px 14px; border-radius: 9px; font-weight: 700; font-size: 14px;
+    background: #e2e8f0; margin-bottom: 12px;
+  }
+  #summary.pass { background: #dcfce7; color: #15803d; }
+  #summary.fail { background: #fee2e2; color: #b91c1c; }
+  .item {
+    display: flex; gap: 9px; align-items: flex-start;
+    padding: 6px 10px; border-radius: 7px; margin-bottom: 3px;
+    background: #fff; border: 1px solid #e2e8f0; font-size: 13px;
+  }
+  .item .mk { flex: 0 0 auto; font-weight: 700; }
+  .item.pass .mk { color: #16a34a; }
+  .item.fail .mk { color: #dc2626; }
+  .item.fail { background: #fef2f2; border-color: #fecaca; }
+  .item .dt { color: #64748b; font-size: 12px; margin-left: 4px; }
+  .group-title { margin: 14px 0 6px; font-size: 12px; font-weight: 700; color: #94a3b8; }
+  form {
+    margin-top: 20px; padding: 14px 16px; background: #fff;
+    border: 1px solid #e2e8f0; border-radius: 10px; max-width: 520px;
+  }
+  form h2 { font-size: 13px; margin: 0 0 10px; color: #334155; }
+  .fm { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .fm label { flex: 0 0 96px; font-size: 12.5px; color: #475569; }
+  .fm input {
+    flex: 1; padding: 6px 9px; border: 1px solid #cbd5e1; border-radius: 6px;
+    font-size: 13px; font-family: inherit;
+  }
+  #sandbox {
+    margin-top: 12px; padding: 10px; background: #fff;
+    border: 1px dashed #cbd5e1; border-radius: 8px; max-width: 520px;
+  }
+  #sandbox .fp-row, #sandbox .fp-row-changed { display: flex; gap: 8px; align-items: center; }
+  #raw {
+    margin-top: 14px; padding: 8px; background: #0f172a; color: #a7f3d0;
+    font-family: Consolas, monospace; font-size: 11px; line-height: 1.4;
+    max-height: 200px; overflow: auto; white-space: pre-wrap; border-radius: 8px;
+  }
+</style>
+</head>
+<body data-page-node-id="v1ZKsT14LQHdNWFDyz8AcR">
+<h1 data-page-node-id="vgf6EcIDacfpY2rZsnicBr">第三步验证：映射记忆 + 适配器可视化生成</h1>
+<div class="sub" data-page-node-id="aCOQO525ID0n0vdM42DaIb">
+  本页 mock 扩展 API、加载真实内容脚本，验证：唯一选择器生成、指纹兜底、记忆优先级高于智能识别、
+  战报里的「记住」入口、页面内点选流程、适配器代码生成。
+</div>
+<div id="summary" data-page-node-id="dIBgZ709nJXo5RyEF95GXa">正在运行…</div>
+<div id="list" data-page-node-id="DKCfq8hOhBaQ7L66dbBhhK"></div>
+
+<form id="mockForm" autocomplete="off" data-page-node-id="ZanMFpiI9y8hvLhnz7nwl4">
+  <h2 data-page-node-id="H5U8skwVqVLGIzXUScwX1z">模拟招聘网站的简历表单</h2>
+  <div class="fm" data-page-node-id="pxugqn8TdQeNHMyAWD0H0u"><label data-page-node-id="XjyUSvLMwkNOhXH2A1tEnm">姓名</label><input id="candName" name="candidateName" placeholder="请输入姓名" data-page-node-id="pq5x5Ef4Q23ntGQSwyal8s"></div>
+  <div class="fm" data-page-node-id="SzNzf0IbJjwvGtG8ssv8k6"><label data-page-node-id="zzwgcHdCm7MfV5ocIFy8Zi">手机号码</label><input name="mobile" placeholder="请输入手机号" data-page-node-id="pa8CjJ5Eb1Hms5wtCIUU1Q"></div>
+  <div class="fm" data-page-node-id="gBrWnbDmXEOkHIOHAFvdGk"><label data-page-node-id="S2dHfnypSKor8V9cKG1MSZ">电子邮箱</label><input name="mail" placeholder="请输入邮箱" data-page-node-id="CC54ZDCWYiUnuWyKVAdNQF"></div>
+  <div class="fm" data-page-node-id="CR5UHF2dphTFOdsAQwAi4U"><label data-page-node-id="iyUnDigJ1GrUcJ1yijaYey">期望城市</label><input id="cityBox" placeholder="请输入期望城市" data-page-node-id="0NWHAPT3a7RJ8NvCHzq2pp"></div>
+  <div class="fm" data-page-node-id="G8k6AwjtiZJSz07IGYApDT"><label data-page-node-id="MAwd89ZiE7GPQF4S9ezSZO">户口性质</label><input id="unknownBox" placeholder="请输入户口性质" data-page-node-id="KZeOYl4ny8aDwNkUeVjByJ"></div>
+  <div class="fm" data-page-node-id="35rCNsTBHrCQvscgimgLeU"><label data-page-node-id="EcpxeaNwWjW1miWxKG5Dnf">薪酬期望区间</label><input id="emptyBox" placeholder="请填写薪酬期望区间" data-page-node-id="ax6wshEsmtDDNeb6QMgfFE"></div>
+  <div class="fm" data-page-node-id="qFxw7RPNyadsYNQFj4kSeW"><label data-page-node-id="bHpy0tD9PuhpoBnFiZLYyT">落户意愿</label><input id="customBox" placeholder="落户意愿" data-page-node-id="SUEFZS2XTBA90GrF6foGL0"></div>
+  <div class="fm" data-page-node-id="ashnlvq1NyuuBKFybg8aKz"><label data-page-node-id="10wVfK5ftBPyI1rJfirpb3">甲</label><input id="fpBox" placeholder="指纹测试框" data-page-node-id="MVgWHH1WgAhQPNm8uC7nUQ"></div>
+  <div class="fm" data-page-node-id="acxsDb2QaJWsO8bVDFgWOJ"><label data-page-node-id="AjMdAzRyhn204riIgdhfze">乙</label><input id="pickBox" placeholder="点选测试框" data-page-node-id="A2JWcMfv3iyt59JRNk61pt"></div>
+</form>
+
+<div id="sandbox" data-page-node-id="CeDluJaFRaw6ytzNWmCbl6"></div>
+<pre id="raw" data-page-node-id="yGFBmVHunGn3KIOtF2iTlh"></pre>
+
+<script>
+// ============================================================
+// 1. mock 扩展 API（必须最先执行：memory.js / content.js 加载时就会用到）
+// ============================================================
+const RESUME = {
+  name: "测试同学",
+  phone: "13800000000",
+  email: "test@example.com",
+  hometown: "河北石家庄",
+  city: "北京",
+  position: "机械结构工程师",
+  school: "某某大学",
+  degree: "本科",
+  major: "机械工程",
+  political: "共青团员",
+  salary: "",
+  intro: "踏实肯干，能加班",
+  awards: "校级三好学生"
+};
+
+const MOCK = {
+  settings: {
+    autoFill: false,
+    skipFilled: true,
+    showHud: true,
+    useMemory: true,
+    deepFill: false,
+    autoAttach: false,
+    hotkey: "command"
+  },
+  resumeData: RESUME,
+  blocks: undefined,
+  attachment: null,
+  customFields: [{ id: "cf1", label: "落户意愿", value: "可落户" }],
+  hudPos: null,
+  siteMaps: undefined
+};
+
+const storageListeners = [];
+const messageListeners = [];
+
+function pickKeys(keys) {
+  const out = {};
+  if (!keys) return Object.assign({}, MOCK);
+  if (typeof keys === "string") { out[keys] = MOCK[keys]; return out; }
+  if (Array.isArray(keys)) { keys.forEach(k => { out[k] = MOCK[k]; }); return out; }
+  Object.keys(keys).forEach(k => { out[k] = (MOCK[k] === undefined) ? keys[k] : MOCK[k]; });
+  return out;
+}
+
+window.chrome = {
+  runtime: {
+    getManifest: () => ({ version: "2.0.0-test" }),
+    onMessage: { addListener: fn => messageListeners.push(fn) },
+    sendMessage: () => {}
+  },
+  storage: {
+    local: {
+      get: keys => Promise.resolve(pickKeys(keys)),
+      set: (obj, cb) => {
+        Object.assign(MOCK, obj);
+        if (typeof cb === "function") cb();
+        const changes = {};
+        Object.keys(obj).forEach(k => { changes[k] = { newValue: obj[k] }; });
+        storageListeners.forEach(fn => { try { fn(changes, "local"); } catch (e) { /* ignore */ } });
+      }
+    },
+    onChanged: { addListener: fn => storageListeners.push(fn) }
+  }
+};
+</script>
+
+<script src="../content/lexicon.js"></script>
+<script src="../content/matcher.js"></script>
+<script src="../content/sites.js"></script>
+<script src="../content/widgets.js"></script>
+<script src="../content/blocks.js"></script>
+<script src="../content/memory.js"></script>
+<script src="../content/hud.js"></script>
+<script src="../content/content.js"></script>
+
+<script>
+// ============================================================
+// 2. 断言框架
+// ============================================================
+const MEMORY = window.JIANLI_MEMORY;
+const HOST = location.hostname;
+const results = [];
+const listEl = document.getElementById("list");
+let groupEl = null;
+
+const pageErrors = [];
+window.addEventListener("error", e => pageErrors.push("error: " + e.message));
+window.addEventListener("unhandledrejection", e => {
+  pageErrors.push("rejection: " + ((e.reason && e.reason.message) || e.reason));
+});
+window.__jianliTestErrors = pageErrors;
+
+function group(title) {
+  groupEl = document.createElement("div");
+  groupEl.className = "group-title";
+  groupEl.textContent = title;
+  listEl.appendChild(groupEl);
+}
+
+function check(name, pass, detail) {
+  results.push(!!pass);
+  const div = document.createElement("div");
+  div.className = "item " + (pass ? "pass" : "fail");
+  const mk = document.createElement("span");
+  mk.className = "mk";
+  mk.textContent = pass ? "✓" : "✗";
+  const nm = document.createElement("span");
+  nm.textContent = name;
+  if (detail) {
+    const dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = "（" + detail + "）";
+    nm.appendChild(dt);
+  }
+  div.appendChild(mk);
+  div.appendChild(nm);
+  (groupEl || listEl).appendChild(div);
+  updateSummary();
+}
+
+function updateSummary() {
+  const s = document.getElementById("summary");
+  const bad = results.filter(r => !r).length;
+  if (bad === 0) {
+    s.className = "pass";
+    s.textContent = "✓ 全部通过 " + results.length + " / " + results.length;
+  } else {
+    s.className = "fail";
+    s.textContent = "✗ 存在失败项 " + bad + " / " + results.length + "（红色那几行）";
+  }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function send(msg) {
+  return new Promise(resolve => {
+    let settled = false;
+    const done = r => { if (!settled) { settled = true; resolve(r); } };
+    for (const fn of messageListeners) {
+      try { fn(msg, {}, done); } catch (e) { /* ignore */ }
+    }
+    setTimeout(() => done({ ok: false, reason: "内容脚本没有响应" }), 10000);
+  });
+}
+
+function setSettings(patch) {
+  MOCK.settings = Object.assign({}, MOCK.settings, patch);
+  storageListeners.forEach(fn => fn({ settings: { newValue: MOCK.settings } }, "local"));
+}
+
+// ---------- HUD 读取工具 ----------
+function shadowRootOfHud() {
+  const h = document.getElementById("jianli-hud-host");
+  return h ? h.shadowRoot : null;
+}
+function panelOf(cls) {
+  const s = shadowRootOfHud();
+  return s ? s.querySelector(cls) : null;
+}
+const ballEl = () => panelOf(".ball");
+const menuEl = () => panelOf(".menu");
+const reportEl = () => panelOf(".report");
+const pickerEl = () => panelOf(".picker");
+const collectEl = () => panelOf(".collect");
+const pickBarEl = () => panelOf(".pick-bar");
+const rpText = () => { const r = reportEl(); return r ? r.textContent : ""; };
+const rpItems = () => { const r = reportEl(); return r ? Array.from(r.querySelectorAll(".rp-item")) : []; };
+
+// 判断"用户到底看不看得见"，而不是"hidden 属性是不是 true"。
+// 为什么必须这样：面板的样式里声明了 display，而 [hidden]{display:none} 来自 UA 样式表，
+// 会被作者样式无条件盖掉 —— 只断言 hidden 属性会得到「假通过」，线上表现为浮层关不掉。
+function vis(el) {
+  if (!el) return false;
+  const cs = getComputedStyle(el);
+  if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+}
+
+function findByText(scope, sel, txt) {
+  if (!scope) return null;
+  return Array.from(scope.querySelectorAll(sel)).find(e => (e.textContent || "").includes(txt)) || null;
+}
+
+const el = id => document.getElementById(id);
+const rawOut = document.getElementById("raw");
+function setRaw(o) { rawOut.textContent = JSON.stringify(o, null, 2); }
+
+// ============================================================
+// 3. 测试
+// ============================================================
+(async function run() {
+ try {
+  await sleep(320);   // 等内容脚本初始化
+
+  // ---------- A. 唯一选择器生成 ----------
+  group("A. 唯一选择器生成");
+
+  const selName = MEMORY.uniqueSelector(el("candName"));
+  check("有稳定 id 时直接用 #id", selName === "#candName", "得到：" + selName);
+
+  const mobileEl = document.querySelector('[name="mobile"]');
+  const selMobile = MEMORY.uniqueSelector(mobileEl);
+  check("没有 id、name 唯一时用 [name=]",
+    selMobile === 'input[name="mobile"]' && document.querySelectorAll(selMobile).length === 1,
+    "得到：" + selMobile);
+
+  const cityEl = el("cityBox");
+  const selCity = MEMORY.uniqueSelector(cityEl);
+  let cityUnique = false;
+  try { cityUnique = document.querySelectorAll(selCity).length === 1 && document.querySelector(selCity) === cityEl; } catch (e) { cityUnique = false; }
+  check("既没 id 也没 name 时生成结构路径且唯一", cityUnique && selCity.length > 0, "得到：" + selCity);
+
+  // 框架自动生成的 id 不能进选择器
+  const dyn = document.createElement("input");
+  dyn.id = ":r1:";
+  dyn.placeholder = "动态 id 框";
+  document.getElementById("sandbox").appendChild(dyn);
+  const selDyn = MEMORY.uniqueSelector(dyn);
+  const dynOk = document.querySelectorAll(selDyn).length === 1 && document.querySelector(selDyn) === dyn;
+  check("框架自动生成的 id（:r1:）不会被当成选择器", selDyn !== "#:r1:" && dynOk, "得到：" + selDyn);
+  dyn.remove();
+
+  // ---------- B. 指纹兜底 ----------
+  group("B. 结构变了也能靠指纹认出来");
+
+  const sb = document.getElementById("sandbox");
+  sb.innerHTML = '<div class="fp-row"><span>甲</span><input placeholder="指纹专用框"></div>';
+  const fpInput = sb.querySelector("input");
+  const selFp = MEMORY.uniqueSelector(fpInput);
+  check("结构型选择器可以精确定位到这个框",
+    document.querySelectorAll(selFp).length === 1 && document.querySelector(selFp) === fpInput,
+    "得到：" + selFp);
+
+  MEMORY.remember("fp.test", fpInput, "hobby", "兴趣爱好");
+  sb.querySelector(".fp-row").className = "fp-row-changed";   // 模拟站点改版把选择器弄失效
+  let hit = null;
+  try { hit = MEMORY.resolve("fp.test", [fpInput]).get(fpInput); } catch (e) { hit = null; }
+  check("选择器失效后，靠 fingerprint（placeholder/标签）仍能命中",
+    !!(hit && hit.key === "hobby" && hit.via === "fingerprint"),
+    hit ? ("via=" + hit.via + ", key=" + hit.key) : "没命中");
+  MEMORY.clearHost("fp.test");
+  sb.innerHTML = "";
+
+  // ---------- C. 记忆的增删查 ----------
+  group("C. 映射表的增删查");
+
+  const sc = document.createElement("input");
+  sc.placeholder = "临时框";
+  sb.appendChild(sc);
+
+  MEMORY.remember("scratch.example.com", sc, "name", "姓名");
+  const stored1 = MOCK.siteMaps && MOCK.siteMaps["scratch.example.com"];
+  check("remember 会把映射写进 chrome.storage.local 的 siteMaps",
+    !!(stored1 && Object.keys(stored1).length === 1),
+    stored1 ? ("键：" + Object.keys(stored1).join(", ")) : "storage 里没有 siteMaps");
+
+  MEMORY.remember("scratch.example.com", sc, "phone", "手机号");
+  const one = MEMORY.listFor("scratch.example.com");
+  check("同一个框改记别的字段时是覆盖，不会留两条互抢",
+    one.length === 1 && one[0].key === "phone",
+    "共 " + one.length + " 条，key=" + (one[0] && one[0].key));
+
+  // 主域兜底：在 example.com 上记的，scratch.example.com 上也能用
+  const sc2 = document.createElement("input");
+  sc2.name = "scratchParentProbe";   // 唯一 name，保证它自己的选择器是精确的
+  sc2.placeholder = "临时框2";
+  sb.appendChild(sc2);
+  MEMORY.remember("example.com", sc2, "email", "邮箱");
+  const hit2 = MEMORY.resolve("scratch.example.com", [sc2]).get(sc2);
+  check("在父域上记的映射，子域名站点也能命中", !!(hit2 && hit2.key === "email"),
+    hit2 ? ("key=" + hit2.key + ", 来源 " + hit2.host) : "没命中");
+
+  const delOk = MEMORY.forget("scratch.example.com", one[0].selector);
+  const leftAfterForget = (MEMORY.all()["scratch.example.com"] && Object.keys(MEMORY.all()["scratch.example.com"]).length) || 0;
+  check("forget 能删掉单条映射",
+    delOk && leftAfterForget === 0,
+    "删除后 scratch.example.com 上还剩 " + leftAfterForget + " 条");
+
+  // 选择器变宽（一个选择器匹配到多个框）时必须放弃，不能把值填到错的框上
+  const broad = document.createElement("input");
+  broad.id = "broadA";
+  const broad2 = document.createElement("input");
+  sb.appendChild(broad);
+  sb.appendChild(broad2);
+  MEMORY.remember("scratch.example.com", broad, "hobby", "兴趣爱好");
+  broad2.id = "broadA";   // 制造重复 id，旧选择器一下子匹配到两个框
+  const amb = MEMORY.resolve("scratch.example.com", [broad, broad2]);
+  check("选择器变宽、匹配到多个框时放弃认领（宁可不填也不填错）",
+    amb.size === 0, "认领了 " + amb.size + " 个框");
+
+  MEMORY.clearHost("scratch.example.com");
+  MEMORY.clearHost("example.com");
+  sb.innerHTML = "";
+
+  // ---------- D. 记忆优先级高于智能识别 ----------
+  group("D. 记忆优先级高于智能识别");
+
+  // D1：智能识别本来会认成「期望城市 / 北京」，我们记成「籍贯 / 河北石家庄」
+  await MEMORY.ensureLoaded();
+  MEMORY.remember(HOST, cityEl, "hometown", "籍贯");
+  // D2：智能识别完全认不出来的框，靠记忆认成「期望城市」
+  MEMORY.remember(HOST, el("unknownBox"), "city", "期望城市");
+  setSettings({ useMemory: true });
+  await sleep(60);
+  let res = await send({ type: "HUD_FILL" });
+  setRaw(res);
+  await sleep(160);
+
+  check("记忆命中的框按记忆的字段填（期望城市框里填了籍贯）",
+    el("cityBox").value === "河北石家庄",
+    "实际值：" + JSON.stringify(el("cityBox").value) + "（智能识别会填「北京」）");
+
+  check("智能识别认不出的「户口性质」框，靠记忆填上了",
+    el("unknownBox").value === "北京",
+    "实际值：" + JSON.stringify(el("unknownBox").value));
+
+  check("记忆命中的框不再出现在「未识别」清单里",
+    !rpItems().some(i => (i.textContent || "").includes("户口性质")),
+    "战报里还有 " + rpItems().filter(i => (i.textContent || "").includes("户口性质")).length + " 条");
+
+  // D3：自定义字段通过「悬浮球/快捷键」这条通路也能填上
+  check("自定义字段（落户意愿=可落户）能通过悬浮球通路填上",
+    el("customBox").value === "可落户",
+    "实际值：" + JSON.stringify(el("customBox").value));
+
+  // ---------- E. 记住的字段简历里没内容 ----------
+  group("E. 记住了、但简历里没内容");
+
+  MEMORY.remember(HOST, el("emptyBox"), "salary", "期望薪资");
+  await sleep(40);
+  res = await send({ type: "HUD_FILL" });
+  setRaw(res);
+  await sleep(160);
+  check("简历里为空时不会乱填，框仍然是空的",
+    el("emptyBox").value === "",
+    "实际值：" + JSON.stringify(el("emptyBox").value));
+  check("战报单独提示「插件认识、但你的简历里没内容」",
+    rpText().includes("简历里没内容") && rpText().includes("期望薪资"),
+    "战报文字：" + rpText().replace(/\s+/g, " ").slice(0, 80));
+
+  // ---------- F. 关掉记忆开关 ----------
+  group("F. 可以整体关掉记忆");
+
+  el("cityBox").value = "";
+  el("unknownBox").value = "";
+  setSettings({ useMemory: false });
+  await sleep(60);
+  await send({ type: "HUD_FILL" });
+  await sleep(160);
+  check("关掉「优先使用字段记忆」后，期望城市框回到智能识别结果（北京）",
+    el("cityBox").value === "北京",
+    "实际值：" + JSON.stringify(el("cityBox").value));
+  setSettings({ useMemory: true });
+  await send({ type: "UNDO_FILL" });
+  await sleep(120);
+
+  // ---------- G. 战报里的「记住」入口 ----------
+  group("G. 战报里点「记住」当场纠正");
+
+  el("cityBox").value = "";
+  el("fpBox").value = "";
+  await send({ type: "HUD_FILL" });
+  await sleep(200);
+
+  const fpRow = rpItems().find(i => (i.textContent || "").includes("指纹测试框") || (i.textContent || "").includes("甲"));
+  check("未识别条目上有「记住」按钮",
+    !!(fpRow && fpRow.querySelector(".rm")),
+    fpRow ? "该行文字：" + fpRow.textContent.replace(/\s+/g, " ") : "没找到指纹测试框那一行");
+
+  if (fpRow && fpRow.querySelector(".rm")) {
+    fpRow.querySelector(".rm").click();
+    await sleep(120);
+    const p = pickerEl();
+    check("点「记住」会弹出字段选择面板", vis(p), p ? ("面板 display=" + getComputedStyle(p).display) : "面板没出现");
+    check("面板里列出了简历字段（含分组标题）",
+      !!findByText(p, ".md-item", "自我评价"),
+      p ? "条目数：" + p.querySelectorAll(".md-item").length : "");
+
+    const target = findByText(p, ".md-item", "自我评价");
+    if (target) {
+      target.click();
+      await sleep(260);
+      check("选完字段后立刻按新映射填了一次",
+        el("fpBox").value === "踏实肯干，能加班",
+        "实际值：" + JSON.stringify(el("fpBox").value));
+      check("映射写进了 storage",
+        !!(MOCK.siteMaps && MOCK.siteMaps[HOST] && Object.values(MOCK.siteMaps[HOST]).some(e => e.key === "intro")),
+        "当前站点记忆条数：" + MEMORY.countFor(HOST));
+      check("战报里那一行变成「→ 自我评价」，不再是未识别",
+        !!(fpRow && (fpRow.textContent || "").includes("自我评价") && !fpRow.querySelector(".rm")),
+        fpRow ? "该行文字：" + fpRow.textContent.replace(/\s+/g, " ") : "");
+    } else {
+      check("选完字段后立刻按新映射填了一次", false, "面板里没找到「自我评价」");
+      check("映射写进了 storage", false, "前置步骤失败");
+      check("战报里那一行变成「→ 自我评价」，不再是未识别", false, "前置步骤失败");
+    }
+  } else {
+    check("点「记住」会弹出字段选择面板", false, "前置步骤失败");
+    check("面板里列出了简历字段（含分组标题）", false, "前置步骤失败");
+    check("选完字段后立刻按新映射填了一次", false, "前置步骤失败");
+    check("映射写进了 storage", false, "前置步骤失败");
+    check("战报里那一行变成「→ 自我评价」，不再是未识别", false, "前置步骤失败");
+  }
+
+  // ---------- H. 点选生成适配器 ----------
+  group("H. 点选生成适配器");
+
+  const menuBtn = ballEl();
+  if (menuBtn) {
+    const r = menuBtn.getBoundingClientRect();
+    menuBtn.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 11, clientX: r.left + 20, clientY: r.top + 20 }));
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, pointerId: 11, clientX: r.left + 20, clientY: r.top + 20 }));
+    await sleep(80);
+    check("悬浮球菜单里有「点选生成适配器」",
+      !!findByText(menuEl(), ".item", "点选生成适配器"),
+      menuEl() ? menuEl().textContent.replace(/\s+/g, " ").slice(0, 60) : "菜单没打开");
+    menuBtn.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 12, clientX: r.left + 20, clientY: r.top + 20 }));
+    window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, pointerId: 12, clientX: r.left + 20, clientY: r.top + 20 }));
+    await sleep(60);
+  } else {
+    check("悬浮球菜单里有「点选生成适配器」", false, "悬浮球不存在");
+  }
+
+  const started = await send({ type: "START_PICK" });
+  await sleep(120);
+  check("发消息能进入点选模式并返回成功", !!(started && started.ok), started && started.reason ? started.reason : "");
+  check("点选模式下页面顶部出现提示条",
+    vis(pickBarEl()),
+    pickBarEl() ? ("display=" + getComputedStyle(pickBarEl()).display + " · " + pickBarEl().textContent.replace(/\s+/g, " ").slice(0, 50)) : "提示条没有出现");
+
+  // 模拟用户在页面上点某个输入框（点选模式必须拦下这次点击，不让页面响应）
+  const pickTarget = el("pickBox");
+  const evt = new MouseEvent("click", { bubbles: true, cancelable: true });
+  pickTarget.dispatchEvent(evt);
+  await sleep(150);
+  check("点选模式下点输入框会拦下这次点击（页面收不到）",
+    evt.defaultPrevented, "defaultPrevented=" + evt.defaultPrevented);
+
+  const p2 = pickerEl();
+  check("点完元素会弹出字段选择面板", vis(p2), p2 ? ("面板 display=" + getComputedStyle(p2).display) : "面板没出现");
+  check("面板上带出了即将使用的选择器",
+    !!(p2 && (p2.textContent || "").includes("选择器：")),
+    p2 ? (p2.textContent || "").replace(/\s+/g, " ").slice(0, 90) : "");
+
+  const awardItem = findByText(p2, ".md-item", "获奖经历");
+  if (awardItem) {
+    awardItem.click();
+    await sleep(280);
+    check("选完字段后写入映射并立刻填充",
+      el("pickBox").value === "校级三好学生",
+      "实际值：" + JSON.stringify(el("pickBox").value));
+
+    const c = collectEl();
+    check("弹出「已收集」面板",
+      vis(c), c ? ("面板 display=" + getComputedStyle(c).display) : "面板没出现");
+    check("面板列出了刚收集的字段和选择器",
+      !!(c && (c.textContent || "").includes("获奖经历") && (c.textContent || "").includes("pickBox")),
+      c ? (c.textContent || "").replace(/\s+/g, " ").slice(0, 90) : "");
+    check("面板提供「继续点选 / 复制代码 / 完成」三个动作",
+      !!(c && findByText(c, ".md-btn", "继续点选") && findByText(c, ".md-btn", "复制代码") && findByText(c, ".md-btn", "完成")),
+      c ? "按钮：" + Array.from(c.querySelectorAll(".md-btn")).map(b => b.textContent).join(" / ") : "");
+
+    // 生成的代码片段必须是能直接粘进 sites.js 的合法结构
+    const code = MEMORY.adapterSnippet(HOST, [{ key: "awards", label: "获奖经历", selector: '#pickBox' }], "测试站点");
+    const codeOk = code.includes('name: "测试站点"')
+      && code.includes("hosts: [")
+      && code.includes("awards: ['#pickBox']")
+      && code.includes("fields: {");
+    check("适配器代码片段包含 hosts / fields / 字段选择器", codeOk, code.replace(/\s+/g, " ").slice(0, 110));
+
+    const merged = MEMORY.adapterSnippet("x.example.com", [
+      { key: "school", label: "学校", selector: "input.a" },
+      { key: "school", label: "学校", selector: "input.b" }
+    ], "X站");
+    check("同一个字段的多个选择器会合并到一行",
+      merged.includes("school: ['input.a', 'input.b']"),
+      merged.replace(/\s+/g, " ").match(/school:[^\n]*/) ? merged.match(/school:[^\n]*/)[0] : merged.slice(0, 90));
+
+    const doneBtn = findByText(c, ".md-btn", "完成");
+    if (doneBtn) {
+      doneBtn.click();
+      await sleep(120);
+      check("点「完成」退出点选模式，提示条收起",
+        !vis(pickBarEl()) && !vis(collectEl()),
+        "提示条 display=" + (pickBarEl() ? getComputedStyle(pickBarEl()).display : "无") +
+        "，面板 display=" + (collectEl() ? getComputedStyle(collectEl()).display : "无"));
+      // 点选期间画上去的蓝色/绿色描边必须还原，不能污染站点样式
+      check("点选结束后 outline 被还原（没有污染页面样式）",
+        !el("pickBox").style.outline && !el("pickBox").style.outlineOffset,
+        "outline=" + JSON.stringify(el("pickBox").style.outline));
+    } else {
+      check("点「完成」退出点选模式，提示条收起", false, "没找到完成按钮");
+      check("点选结束后 outline 被还原（没有污染页面样式）", false, "前置步骤失败");
+    }
+  } else {
+    check("选完字段后写入映射并立刻填充", false, "面板里没找到「获奖经历」");
+    check("弹出「已收集」面板", false, "前置步骤失败");
+    check("面板列出了刚收集的字段和选择器", false, "前置步骤失败");
+    check("面板提供「继续点选 / 复制代码 / 完成」三个动作", false, "前置步骤失败");
+    check("适配器代码片段包含 hosts / fields / 字段选择器", false, "前置步骤失败");
+    check("同一个字段的多个选择器会合并到一行", false, "前置步骤失败");
+    check("点「完成」退出点选模式，提示条收起", false, "前置步骤失败");
+    check("点选结束后 outline 被还原（没有污染页面样式）", false, "前置步骤失败");
+  }
+
+  // 点选模式退出后，页面的点击必须恢复正常（不能一直拦着）
+  const evtAfter = new MouseEvent("click", { bubbles: true, cancelable: true });
+  el("candName").dispatchEvent(evtAfter);
+  check("退出点选后页面点击恢复正常", !evtAfter.defaultPrevented, "defaultPrevented=" + evtAfter.defaultPrevented);
+
+  // ---------- I. 第二步功能回归 ----------
+  group("I. 第二步功能回归");
+
+  check("悬浮球仍在页面上", !!ballEl(), ballEl() ? "" : "悬浮球不见了");
+
+  el("candName").value = "";
+  const res2 = await send({ type: "HUD_FILL" });
+  await sleep(150);
+  check("记忆接入后，常规字段照常填写",
+    el("candName").value === "测试同学" && document.querySelector('[name="mail"]').value === "test@example.com",
+    el("candName").value + " / " + document.querySelector('[name="mail"]').value);
+
+  const undone = await send({ type: "UNDO_FILL" });
+  await sleep(120);
+  check("撤销仍然可用",
+    !!(undone && undone.ok) && el("candName").value === "",
+    undone && undone.ok ? ("恢复了 " + undone.restored + " 个框") : (undone && undone.reason));
+
+  check("测试过程中没有未捕获的页面错误", pageErrors.length === 0, pageErrors.slice(0, 2).join(" | "));
+
+ } catch (e) {
+  check("测试脚本没有中途崩溃", false, e && e.message ? e.message : String(e));
+ }
+ document.body.dataset.jianliDone = "1";
+ updateSummary();
+})();
+</script>
+</body>
+</html>

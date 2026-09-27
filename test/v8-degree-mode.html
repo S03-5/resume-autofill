@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="bzsCkU3HqOQRYDfaK8OoCX">
+<head data-page-node-id="RnnZQR1kETmFuB4qI5IlVb">
+<meta charset="UTF-8" data-page-node-id="6s8edR92DmDSCWi05gPXhl">
+<title>简历助手 · 学位与学习形式端到端验证</title>
+<style>
+  body { font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+         max-width: 860px; margin: 0 auto; padding: 20px 24px 60px; color: #1f2937; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  .sub { color: #6b7280; font-size: 12.5px; margin-bottom: 18px; }
+  #summary { font-size: 15px; font-weight: 700; padding: 10px 14px; border-radius: 8px;
+             background: #f3f4f6; margin: 14px 0; }
+  #summary.pass { background: #dcfce7; color: #15803d; }
+  #summary.fail { background: #fee2e2; color: #b91c1c; }
+  .group-title { margin: 18px 0 6px; font-weight: 700; font-size: 13.5px; color: #374151;
+                 border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+  .item { font-size: 13px; padding: 2px 0 2px 4px; }
+  .item .mk { font-weight: 700; margin-right: 6px; }
+  .item.pass .mk { color: #16a34a; }
+  .item.fail .mk { color: #dc2626; }
+  .item .dt { color: #9ca3af; font-size: 12px; margin-left: 6px; }
+  form { border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; background: #fafafa; }
+  form h2 { font-size: 14px; margin: 0 0 10px; color: #4b5563; }
+  .fm { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .fm > label { width: 110px; color: #4b5563; font-size: 13px; }
+  select { padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px; min-width: 200px; }
+</style>
+</head>
+<body data-page-node-id="JLVSZYR91cCyB4scWNeinI">
+<h1 data-page-node-id="NA9cXz6MyTqkq1DZAsAWkZ">简历助手 · 学位与学习形式端到端验证</h1>
+<div class="sub" data-page-node-id="KYH6js8NYbNedtOFBKiHSC">
+  实测遇到的两个框：页面写「学习形式」，要的是「全国普通高等院校全日制」；写「学位」，要的是「学士」。
+  学历和学位是两个不同的东西（学历=本科，学位=学士），这一页专门验证它们不会互相串。
+</div>
+
+<form id="mockForm" autocomplete="off" data-page-node-id="Z6fChissttQnJkyMCSFQ2a">
+  <h2 data-page-node-id="CB90aYpGi7wUV7IhPLCyQl">模拟招聘网站的教育信息区</h2>
+
+  <div class="fm" data-page-node-id="LrWOG7q2RSrEboE85DmZ8J"><label data-page-node-id="PolAvb4rCHv1ykEsemCNPE">学习形式</label>
+    <select name="studyForm" id="selStudyMode" data-page-node-id="zLR7nofPfOjCEayafJqO9V">
+      <option value="" data-page-node-id="YEXw3RRdliluBe7l7pscZv">请选择</option>
+      <option data-page-node-id="fRaDQnqDnxqRGudsYXRT8f">全国普通高等院校全日制</option>
+      <option data-page-node-id="M6I5LfqfcGRHErxWilTsFg">非全日制</option>
+    </select>
+  </div>
+
+  <div class="fm" data-page-node-id="sHHl6nwWTcIXgpwJXBE7YS"><label data-page-node-id="pMB7plVGOipG5q4kxNQbD9">学习形式</label>
+    <select name="studyForm2" id="selStudyMode2" data-page-node-id="vkUMhRB3Ctn7NEZXPErMpm">
+      <option value="" data-page-node-id="AhPfI8tG20TZRliWoWJrTV">请选择</option>
+      <option data-page-node-id="db25MKlygxzMnAIQ7e9bC7">全国普通高等学校全日制</option>
+    </select>
+  </div>
+
+  <div class="fm" data-page-node-id="F2WMDgen2EOFD3oBlRrcPQ"><label data-page-node-id="olT6lHS9riDMJ90aZZ4490">最高学历</label>
+    <select name="degree" id="selDegree" data-page-node-id="QoKue7Hz65cpXXDZYaQkkt">
+      <option value="" data-page-node-id="NXDlJKafcxl53J2p6nmjyj">请选择</option>
+      <option data-page-node-id="D8MGoTGH8mSREdPDoedyEm">高中</option>
+      <option data-page-node-id="laraf0wIPXci6kY7vCnIUF">大专</option>
+      <option data-page-node-id="E45DE3FHagex0kUfCFDVS8">本科</option>
+      <option data-page-node-id="AysUSJ2GqqQ7aIDQlgChCY">硕士</option>
+      <option data-page-node-id="ZZG1JI6DXBZuUvB5H42A8R">博士</option>
+    </select>
+  </div>
+
+  <div class="fm" data-page-node-id="dBgmS1v73luzxSTVJ9bp0R"><label data-page-node-id="eSqZOptn4MjsaOzzafyKA0">学位</label>
+    <select name="degreeName" id="selDegreeName" data-page-node-id="VHY7Fjnv9ezAT2GKa9teA6">
+      <option value="" data-page-node-id="j44jxmzAWoLX3FFBG3L48b">请选择</option>
+      <option data-page-node-id="ZKcyeBn7iFOtj2XMNpXFda">无</option>
+      <option data-page-node-id="Ql8nfT0qjcOCNFAJmejldf">学士</option>
+      <option data-page-node-id="tUy7jzFi6hvb7anxULkpGz">硕士</option>
+      <option data-page-node-id="l1o7sbxIYPYrDV7mTqoc6q">博士</option>
+    </select>
+  </div>
+
+  <div class="fm" data-page-node-id="NsgwUBRFoFM6mwlE2LAVSf"><label data-page-node-id="53amXBLrp9vMEm20QbIdmn">学位</label>
+    <select name="degreeName2" id="selDegreeName2" data-page-node-id="iMxE93iLhMF7n8TOkGVsDo">
+      <option value="" data-page-node-id="MEw5CZjcntVG1PymLPDBTT">请选择</option>
+      <option data-page-node-id="0Vat1tx7QYUOiUlwK3owK5">硕士</option>
+      <option data-page-node-id="OF1P6zuRpU9U7FvQByPESz">博士</option>
+    </select>
+  </div>
+</form>
+
+<div id="list" data-page-node-id="ZQ7fIz3klEZezWRQ3N3Vfs"></div>
+<div id="summary" data-page-node-id="XEFLWZVG3RtoHFR5xcG2rA">正在运行…</div>
+
+<script>
+// ============================================================
+// 1. 简历数据与 chrome API 模拟
+// ============================================================
+const RESUME = {
+  school: "长春理工大学",
+  degree: "本科",        // 学历：页面选项里正好有「本科」
+  degree_name: "学士",   // 学位：页面选项里正好有「学士」
+  study_mode: "全日制"   // 学习形式：页面选项写的是长写法，靠词表认
+};
+
+const MOCK = {
+  settings: {
+    autoFill: false,
+    skipFilled: true,
+    showHud: true,
+    deepFill: false,        // 本页全是原生下拉，不需要深度填充
+    autoAttach: false,
+    useMemory: false,       // 记忆会掩盖匹配逻辑，这里关掉
+    inferPosition: false,   // 岗位推断与本次验证无关
+    ledgerPrompt: false,
+    navAutoFill: false,
+    hotkey: "command"
+  },
+  resumeData: RESUME,
+  blocks: undefined,
+  attachment: null,
+  customFields: [],
+  hudPos: null
+};
+
+const storageListeners = [];
+const messageListeners = [];
+
+function pickKeys(keys) {
+  const out = {};
+  if (!keys) return Object.assign({}, MOCK);
+  if (typeof keys === "string") { out[keys] = MOCK[keys]; return out; }
+  if (Array.isArray(keys)) { keys.forEach(k => { out[k] = MOCK[k]; }); return out; }
+  Object.keys(keys).forEach(k => { out[k] = (MOCK[k] === undefined) ? keys[k] : MOCK[k]; });
+  return out;
+}
+
+window.chrome = {
+  runtime: {
+    getManifest: () => ({ version: "2.2.0-test" }),
+    onMessage: { addListener: fn => messageListeners.push(fn) },
+    sendMessage: () => {}
+  },
+  storage: {
+    local: {
+      get: keys => Promise.resolve(pickKeys(keys)),
+      set: (obj, cb) => {
+        Object.assign(MOCK, obj);
+        if (typeof cb === "function") cb();
+        const changes = {};
+        Object.keys(obj).forEach(k => { changes[k] = { newValue: obj[k] }; });
+        storageListeners.forEach(fn => { try { fn(changes, "local"); } catch (e) { /* ignore */ } });
+      }
+    },
+    onChanged: { addListener: fn => storageListeners.push(fn) }
+  }
+};
+</script>
+
+<script src="../content/lexicon.js"></script>
+<script src="../content/matcher.js"></script>
+<script src="../content/sites.js"></script>
+<script src="../content/widgets.js"></script>
+<script src="../content/blocks.js"></script>
+<script src="../content/hud.js"></script>
+<script src="../content/content.js"></script>
+
+<script>
+// ============================================================
+// 2. 断言框架
+// ============================================================
+const results = [];
+const listEl = document.getElementById("list");
+
+const pageErrors = [];
+window.addEventListener("error", e => pageErrors.push("error: " + e.message));
+window.addEventListener("unhandledrejection", e => {
+  pageErrors.push("rejection: " + ((e.reason && e.reason.message) || e.reason));
+});
+
+function group(title) {
+  const g = document.createElement("div");
+  g.className = "group-title";
+  g.textContent = title;
+  listEl.appendChild(g);
+}
+
+function check(name, pass, detail) {
+  results.push(!!pass);
+  const div = document.createElement("div");
+  div.className = "item " + (pass ? "pass" : "fail");
+  const mk = document.createElement("span");
+  mk.className = "mk";
+  mk.textContent = pass ? "✓" : "✗";
+  const nm = document.createElement("span");
+  nm.textContent = name;
+  if (detail) {
+    const dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = "（" + detail + "）";
+    nm.appendChild(dt);
+  }
+  div.appendChild(mk);
+  div.appendChild(nm);
+  listEl.appendChild(div);
+}
+
+function updateSummary() {
+  const bad = results.filter(r => !r).length;
+  const el = document.getElementById("summary");
+  el.textContent = bad
+    ? "有 " + bad + " 项没过（共 " + results.length + " 项）"
+    : "全部通过 " + results.length + " / " + results.length;
+  el.className = bad ? "fail" : "pass";
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function send(msg) {
+  return new Promise(resolve => {
+    let settled = false;
+    const done = r => { if (!settled) { settled = true; resolve(r); } };
+    for (const fn of messageListeners) {
+      try { fn(msg, {}, done); } catch (e) { /* 单个监听器异常不影响其他 */ }
+    }
+    setTimeout(() => done({ ok: false, reason: "内容脚本没有响应" }), 10000);
+  });
+}
+
+// option 没写 value 时，value 就等于它的文字；所以 "" 表示还停在「请选择」上
+function selText(id) {
+  const el = document.getElementById(id);
+  if (!el || el.selectedIndex < 0) return "";
+  return (el.options[el.selectedIndex].textContent || "").trim();
+}
+function selValue(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : "(无此元素)";
+}
+
+// ============================================================
+// 3. 测试
+// ============================================================
+(async function run() {
+ try {
+  await sleep(300);
+
+  const res = await send({ type: "HUD_FILL" });
+  await sleep(200);
+
+  group("A. 学习形式：页面选项是长写法「全国普通高等院校全日制」");
+  check("填写接口返回成功", !!res && res.ok === true,
+    res ? JSON.stringify(res.reason || "") : "无响应");
+  check("简历「全日制」→ 选中「全国普通高等院校全日制」",
+    selText("selStudyMode") === "全国普通高等院校全日制",
+    "实际：" + JSON.stringify(selText("selStudyMode")));
+  // 红线：字面上「非全日制」也含「全日制」三个字，绝不能被选中
+  check("绝不选中语义相反的「非全日制」",
+    selText("selStudyMode") !== "非全日制",
+    "实际：" + JSON.stringify(selText("selStudyMode")));
+
+  group("B. 学校 / 院校两种写法都要认");
+  check("简历「全日制」→ 选中「全国普通高等学校全日制」",
+    selText("selStudyMode2") === "全国普通高等学校全日制",
+    "实际：" + JSON.stringify(selText("selStudyMode2")));
+
+  group("C. 学历和学位是两个框，必须分别填对");
+  check("最高学历：简历「本科」→ 选中「本科」",
+    selText("selDegree") === "本科",
+    "实际：" + JSON.stringify(selText("selDegree")));
+  check("学位：简历「学士」→ 选中「学士」",
+    selText("selDegreeName") === "学士",
+    "实际：" + JSON.stringify(selText("selDegreeName")));
+  // 学位下拉的第一项常常就是「无」，字面最短，绝不能被选中
+  check("学位：绝不选中「无」",
+    selText("selDegreeName") !== "无",
+    "实际：" + JSON.stringify(selText("selDegreeName")));
+  // 回归点：以前「学位」这个词算在学历字段头上，两个框会一起被填成「本科」
+  check("学位框没有被学历值「本科」串味",
+    selText("selDegreeName") !== "本科",
+    "实际：" + JSON.stringify(selText("selDegreeName")));
+  check("学历框没有被学位值「学士」串味",
+    selText("selDegree") !== "学士",
+    "实际：" + JSON.stringify(selText("selDegree")));
+
+  group("D. 找不到安全匹配的仍然留空");
+  check("学位：页面只有 硕士/博士，简历「学士」→ 留空",
+    selValue("selDegreeName2") === "",
+    "实际：" + JSON.stringify(selText("selDegreeName2")));
+
+  group("E. 撤销要能全部还原");
+  await send({ type: "UNDO_FILL" });
+  await sleep(200);
+  check("撤销后学习形式回到「请选择」", selValue("selStudyMode") === "",
+    "实际：" + JSON.stringify(selText("selStudyMode")));
+  check("撤销后学位回到「请选择」", selValue("selDegreeName") === "",
+    "实际：" + JSON.stringify(selText("selDegreeName")));
+  check("撤销后学历回到「请选择」", selValue("selDegree") === "",
+    "实际：" + JSON.stringify(selText("selDegree")));
+
+  group("F. 页面没有报错");
+  check("整个测试过程没有未捕获的页面错误",
+    pageErrors.length === 0, pageErrors.join(" | ") || "无");
+ } catch (e) {
+  check("测试脚本本身没有抛异常", false, e && e.message);
+ } finally {
+  updateSummary();
+  document.body.dataset.jianliDone = "1";
+ }
+})();
+</script>
+</body>
+</html>

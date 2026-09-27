@@ -11,6 +11,21 @@ body {
   flex-direction: column;
 }
 
+/* body 是 flex 列布局、高度又被锁在 600px：内容一旦超出，浏览器会按比例压扁
+   每一个 flex item，折叠提示那两行会被压成 1px 高的一条线（踩过一次）。
+   上方这些区块高度都是固定的，明确禁止压缩 —— 空间协商只该发生在 main 上。 */
+header,
+.status,
+.site-hint,
+.profile-bar,
+.profile-hint,
+.more-box,
+.toolbar,
+.scan-out,
+footer {
+  flex: 0 0 auto;
+}
+
 header {
   position: sticky;
   top: 0;
@@ -92,10 +107,227 @@ button.ghost.danger { color: #b91c1c; }
 .status.hidden { display: none; }
 
 .site-hint {
-  margin: 8px 14px 0;
+  margin: 7px 14px 0;
   font-size: 12px;
   color: #64748b;
 }
+
+/* ---------- 单行折叠提示 ---------- */
+/* 弹窗总高只有 600px，站点提示和方案提示各占 2~3 行，等于白吃掉字段区两格空间。
+   默认压成一行、超出省略，点一下展开全文，再点收起。 */
+
+.fold-line {
+  position: relative;
+  padding-right: 15px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.fold-line::after {
+  content: "▾";
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 10px;
+  line-height: 16px;
+  color: #94a3b8;
+}
+
+.fold-line.expand {
+  white-space: normal;
+  word-break: break-all;
+}
+
+.fold-line.expand::after { content: "▴"; }
+
+/* ---------- 简历方案条 ---------- */
+
+.profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 14px 0;
+  padding: 7px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.profile-bar .pb-label {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.profile-bar select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.profile-bar .pb-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid #1d4ed8;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.12);
+}
+
+/* 方案条是浅底，不能用 header 上那套白字按钮 */
+.profile-bar .pb-btn {
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.profile-bar .pb-btn:hover { background: #cbd5e1; }
+.profile-bar .pb-btn.danger:hover { background: #fee2e2; color: #b91c1c; }
+
+.profile-hint {
+  margin: 5px 14px 0;
+  font-size: 11.5px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.profile-hint .warn { color: #b45309; }
+.profile-hint .ok { color: #15803d; }
+
+/* ---------- 投递台账 ---------- */
+
+.ledger-add {
+  margin: 8px 0 2px;
+  padding: 8px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.lg-add-row { display: flex; gap: 6px; }
+.lg-add-row + .lg-add-row { margin-top: 6px; }
+
+.lg-add-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+}
+
+.lg-add-row button { flex: 0 0 auto; padding: 5px 12px; }
+
+.lg-filter {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.lg-filter select,
+.lg-filter input {
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  background: #fff;
+}
+
+.lg-filter select { flex: 0 0 116px; }
+.lg-filter input { flex: 1; }
+
+.ledger-list { margin-top: 8px; max-height: 320px; overflow-y: auto; }
+.lg-empty { padding: 8px 4px; font-size: 12px; color: #94a3b8; }
+
+.lg-row {
+  padding: 8px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  margin-bottom: 6px;
+}
+
+.lg-head { display: flex; align-items: center; gap: 6px; }
+
+.lg-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lg-title b { color: #0f172a; font-weight: 700; }
+.lg-title .lg-pos { color: #475569; }
+
+.lg-status {
+  flex: 0 0 auto;
+  padding: 3px 5px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #334155;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.lg-del {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: none;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #b91c1c;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.lg-del:hover { background: #fee2e2; }
+
+.lg-meta { margin-top: 4px; font-size: 11px; color: #94a3b8; }
+
+.lg-detail { margin-top: 5px; }
+.lg-detail summary { font-size: 11.5px; color: #1d4ed8; cursor: pointer; }
+
+.lg-edit-row { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.lg-edit-row label { flex: 0 0 40px; font-size: 11.5px; color: #64748b; }
+
+.lg-edit-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 7px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.lg-link { display: inline-block; margin-top: 6px; font-size: 11.5px; color: #1d4ed8; }
 
 .toolbar {
   display: flex;
@@ -160,6 +392,92 @@ button.ghost.danger { color: #b91c1c; }
   margin-top: 6px;
 }
 
+/* ---------- 「更多设置」折叠区 ---------- */
+/* 原先的 5 个面板（简历识别 / 附件 / 填写选项 / 字段记忆 / 投递台账）各自占一行标题，
+   合计约 185px 常驻在字段列表上方，把字段区挤到只剩 170px 可见高度。
+   现在统一收进这一个折叠区，收起时只占一行。 */
+
+.more-box {
+  margin: 8px 14px 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 10px;
+}
+
+.more-box > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+/* 去掉浏览器默认的三角，改用 ::after 自绘，这样展开态能翻转 */
+.more-box > summary::-webkit-details-marker { display: none; }
+
+.more-box > summary::after {
+  content: "▾";
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: #94a3b8;
+  transition: transform 0.15s;
+}
+
+.more-box[open] > summary::after { transform: rotate(180deg); }
+
+.more-box .mb-name { flex: 0 0 auto; }
+
+.more-box .mb-sub {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 400;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.more-body {
+  margin-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 8px;
+  /* 上限是为了自保：body 高 600px 且 flex 列布局，展开内容不设限的话
+     会把 main（flex:1）压成 0 高，字段区直接消失，多出来的还会溢出弹窗看不全。
+     300px 是量出来的边界：展开内层最长的「填写选项」时，弹窗总高离 600 还剩约 24px。
+     main 即使被压到 0 也还留着 20px 内边距，所以别贴着 600 去卡上限。 */
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 内层 5 个面板视觉降一级（浅底细边），并且不再各自带 14px 左右外边距 */
+.more-box .sub-box {
+  margin: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 7px 9px;
+}
+
+.more-box .sub-box + .sub-box { margin-top: 7px; }
+
+.more-box .sub-box > summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.more-box .sub-box > summary:hover { color: #1d4ed8; }
+
+/* 展开后的内层内容跟着浅底，输入框统一用白色底才看得出边界 */
+.more-box .sub-box textarea,
+.more-box .sub-box input[type="text"] { background: #fff; }
+
 .recognize-out {
   margin-top: 8px;
   padding: 8px;
@@ -217,7 +535,7 @@ button.ghost.danger { color: #b91c1c; }
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 10px 14px 0;
+  margin: 10px 0 0;
   padding: 8px 10px;
   background: #eef2ff;
   border-radius: 8px;
@@ -226,6 +544,33 @@ button.ghost.danger { color: #b91c1c; }
 }
 
 .switch-row input { accent-color: #1d4ed8; }
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  background: #eef2ff;
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+
+.field-row label {
+  flex: 0 0 auto;
+  color: #334155;
+}
+
+.field-row select {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-family: inherit;
+  background: #fff;
+}
 
 main {
   flex: 1;
@@ -293,3 +638,176 @@ footer {
   color: #94a3b8;
   font-size: 12.5px;
 }
+
+/* ---------- 简历附件 ---------- */
+
+.attach-info {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.attach-info.ok {
+  background: #dcfce7;
+  color: #14532d;
+}
+
+/* ---------- 经历块 ---------- */
+
+.block-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.block-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.block-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.block-del {
+  padding: 2px 8px;
+  font-size: 11.5px;
+}
+
+.block-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 7px;
+}
+
+.block-field label {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.block-field input,
+.block-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-family: inherit;
+  background: #fff;
+}
+
+.block-field textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.block-field input:focus,
+.block-field textarea:focus {
+  outline: none;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.12);
+}
+
+/* ---------- 字段记忆 ---------- */
+
+#memoryBox .import-actions { flex-wrap: wrap; }
+#memoryBox .import-actions button { flex: 1 1 auto; }
+
+.memory-list {
+  margin-top: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.mem-host {
+  margin: 8px 0 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #1d4ed8;
+  word-break: break-all;
+}
+
+.mem-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  margin-bottom: 4px;
+}
+
+.mem-row .mem-label {
+  flex: 0 0 auto;
+  max-width: 34%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.mem-row .mem-sel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.mem-row .mem-del {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.mem-row .mem-del:hover { background: #fecaca; }
+
+/* ---------- 弹窗密度：把高度让给字段区 ---------- */
+/* 弹窗高度硬顶 600px，上方每多占 1px，字段区就少 1px —— 没有第二个滚动容器能缓冲。
+   下面这些是覆盖上面各处的原始间距，数值全部来自 test/run-popup.js 的实测账目：
+     header 57→51 · 方案条 52→46 · 更多设置行 42→36 · 工具栏 39→37 · footer 48→42
+   合计上方常驻 235px → 约 198px，字段区 317px → 约 354px。
+   动过这些值之后必须重跑 node test/run-popup.js，账目对不上就是回归。 */
+
+header { padding: 9px 12px; }
+button.primary { padding: 7px 12px; }
+button.ghost { padding: 4px 9px; }
+
+.site-hint { margin-top: 5px; }
+
+.profile-bar { margin-top: 6px; padding: 5px 8px; }
+.profile-bar select,
+.profile-bar .pb-input { padding: 3px 6px; }
+.profile-bar .pb-btn { padding: 4px 7px; }
+
+.profile-hint { margin-top: 4px; }
+
+.more-box { margin-top: 6px; padding: 6px 9px; }
+
+.toolbar { margin-top: 6px; }
+
+footer { padding: 7px 12px; }
+

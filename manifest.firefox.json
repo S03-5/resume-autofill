@@ -6,7 +6,7 @@
   "permissions": ["storage", "activeTab", "scripting", "contextMenus", "windows"],
   "host_permissions": ["<all_urls>"],
   "background": {
-    "service_worker": "background.js"
+    "scripts": ["user-defaults.js", "defaults.js", "profiles.js", "background.js"]
   },
   "action": {
     "default_popup": "popup/popup.html",
@@ -41,6 +41,12 @@
         "default": "Ctrl+Shift+Z"
       },
       "description": "撤销上一次填写，恢复填写前的原值"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "jianli-autofill@local",
+      "strict_min_version": "115.0"
     }
   }
 }
