@@ -409,8 +409,8 @@ const DATA = {
 
 const BLOCKS = {
   education: [{
-    school: "长春理工大学", major: "机械设计制造及其自动化", degree: "本科",
-    college: "机电工程学院", start: "2023.09", end: "至今", gpa: "", ranking: "前25%"
+    school: "示例大学", major: "计算机科学与技术", degree: "本科",
+    college: "计算机学院", start: "2021.09", end: "至今", gpa: "", ranking: "前25%"
   }],
   project: [
     { name: "一种无人机用应急降落装置", role: "实用新型专利", start: "", end: "", desc: "设计被动触发式应急缓冲降落机构" },
@@ -446,7 +446,7 @@ window.__listener(
     const eduItems = document.querySelectorAll("#eduList .exp-item");
     const eduSchool = eduItems[0] ? eduItems[0].querySelectorAll("input")[0].value : "(缺失)";
     checks.push({ name: "教育经历行数（应为 1）", expect: "1", got: String(eduItems.length), ok: eduItems.length === 1 });
-    checks.push({ name: "教育经历-学校名称", expect: "长春理工大学", got: eduSchool, ok: eduSchool === "长春理工大学" });
+    checks.push({ name: "教育经历-学校名称", expect: "示例大学", got: eduSchool, ok: eduSchool === "示例大学" });
 
     const projItems = document.querySelectorAll("#projList .exp-item");
     checks.push({ name: "项目经历自动增行（1 → 2）", expect: "2", got: String(projItems.length), ok: projItems.length === 2 });

@@ -118,10 +118,10 @@ eq("mergeBlocks 已导出", typeof MB, "function");
 const tpl = {
   education: [{ school: "", degree: "", degree_name: "学士", study_mode: "全日制", college: "" }]
 };
-const merged = MB(tpl, { education: [{ school: "长春理工大学", degree: "本科", college: "机电工程学院" }] });
+const merged = MB(tpl, { education: [{ school: "示例大学", degree: "本科", college: "计算机学院" }] });
 eq("老数据里缺的新字段被补上", merged.education[0].degree_name, "学士");
 eq("学习形式也一起补上", merged.education[0].study_mode, "全日制");
-eq("用户自己填过的值不被模板覆盖", merged.education[0].school, "长春理工大学");
+eq("用户自己填过的值不被模板覆盖", merged.education[0].school, "示例大学");
 
 // 用户自己加的第二段经历（比如硕士那段）不能被模板第 1 行的值串上 —— 那比空着更糟
 const twoRows = MB(tpl, {
