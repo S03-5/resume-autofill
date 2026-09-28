@@ -509,50 +509,412 @@ node test/check.js          # 静态检查：加载顺序、接线、[hidden] �
 
 ## English
 
-**Resume Autofill Assistant** — a Manifest V3 extension for Chrome / Edge that auto-fills online resume and application forms on Chinese job boards, and keeps a record of every application you submit.
+> **Resume Autofill Assistant** (简历助手) — a Manifest V3 browser extension for **Chrome / Edge** that fills out online resume and job-application forms on Chinese job boards in one click, and keeps a record of every application you submit.
 
-**Highlights**
+**Why I built this.** During campus-recruiting season you may apply to a dozen companies a day, and every single one asks you to retype your name, phone number, education and four experience blocks by hand. After submitting you can't even remember who you applied to or where each application stands. So this is more than "auto-fill" — it does three things well: **fill accurately, learn from you, and remember everything.**
 
-- **Component-based form support** — antd / Element style dropdowns, date pickers, and cascading province-city-district selectors are driven by simulated real clicks, not naive value assignment
-- **Repeatable experience blocks** — automatically clicks "＋ Add" until there are enough rows, then fills each one
-- **Floating ball + fill report + one-click undo** — see exactly what was filled and what wasn't; click any item to jump to that field; undo restores every field to its pre-fill value
-- **Field memory & visual adapter generation** — teach the extension an unrecognized field by clicking on it in the page; it remembers next time (selector + fingerprint, so it survives minor redesigns)
-- **Multiple resume profiles** — fields, experience blocks and attachments switch together; switching is manual
-- **Auto-inferred target position** — reads the job title from the page and overwrites the expected position / city accordingly (toggleable)
-- **Application ledger** — detects "application submitted" pages, tracks status (applied → exam → interview → offer / rejected), with stats and CSV export
-- **Local only** — all data lives in `chrome.storage.local`; nothing is ever uploaded
+> Current version **2.4.1** (2026-09-16). Full changelog in [`更新日志.md`](更新日志.md); a summary of the September 2026 optimization pass is in [`优化报告.html`](优化报告.html).
 
-**Install**
+### What it solves
 
-1. Clone or download this repository
-2. Open `edge://extensions/` (or `chrome://extensions/`)
-3. Enable **Developer mode**
-4. Click **Load unpacked** and select the repository folder
-5. Pin the 📋 icon to your toolbar
+| The pain | What the extension does |
+|---|---|
+| Dropdowns that don't respond to clicks, date pickers that won't open, region selectors that only fill the first level | Drives component-based widgets (antd / Element) with simulated real clicks, level by level — not relying on native `<select>` |
+| A company wants four experience blocks but the page only shows one row | Counts the gap and clicks "＋ Add" until there are enough rows, then fills each |
+| After filling you don't know what got filled and what didn't | Shows a **fill report** listing filled / failed (with reasons) / unrecognized fields; click an item to jump straight to it |
+| You accidentally overwrite content already on the page | Fills **blank fields only** by default, with one-click undo to revert |
+| The extension can't recognize a field, so you wait for the author to patch it | Teach it yourself with two clicks on the page — remembered permanently |
+| One resume for every job, so you apply to a Java role with "Mechanical Structure Engineer" | Infers the target position and city from the job-page title |
+| Mechanical vs hardware roles need different resumes, easily mixed up | Maintains multiple resume profiles that switch fields / experience blocks / attachments together |
+| Applied to dozens of companies and forgot them all | An application ledger: auto-detects success pages + manual entry, with stats and CSV export |
 
-**Quick start**
+### Features
 
-1. Click the 📋 icon, expand **Resume recognition**, paste your resume text or import a `.docx` / `.pdf`, then apply the recognized fields
-2. Upload your resume PDF under **Resume attachment** so it gets attached automatically
-3. Open a job board's resume or application page and click **⚡ Fill Current Page** (or press `Ctrl+Shift+F`)
-4. Review the fill report in the bottom-right corner; fill anything missing, or click **Remember** to teach the extension an unrecognized field
-5. After submitting, confirm the prompt to log the application in the ledger
+#### 1. One-click fill (including component-based forms)
+Open a job board's resume or application page and click **⚡ Fill Current Page** — dozens of fields fill in and highlight green.
 
-**Shortcuts** — Fill: `Ctrl+Shift+F` · Undo: `Ctrl+Shift+Z` · Exit picking mode: `Esc`
+It doesn't just set `value`: campus-recruiting sites render "fake forms" with component libraries like antd / Element, where the native approach completely fails. So there's a dedicated adaptation layer:
 
-**Supported sites** — BOSS直聘, 智联招聘, 前程无忧, 拉勾, 猎聘, 实习僧, Moka, 北森, 牛客网校招, 快手校招, 字节跳动, 美团, 华为, 腾讯, 阿里巴巴. Other sites fall back to heuristic matching (placeholder / label / `name` / `aria-label`); unrecognized fields can be taught manually.
+- **Smart dropdown matching** (see §2) — consistent results everywhere
+- **Non-native dropdowns** — simulate `mousedown` to open the panel, pick with the same matcher, then click
+- **Date pickers** — try direct assignment first; if that fails, open the panel and click year → month → day; supports both year-month and full-date pickers
+- **Cascading province / city / district** — splits "Jilin Changchun Nanguan" and clicks each level; supports autonomous regions, prefectures, municipalities, and separate-list cities
+- **Repeatable experience blocks** — education / internship / project / work; auto-clicks "＋ Add" when there aren't enough rows
+- **Family info** — member name / relation / employer / age / phone. Locatable even when there is **no "Add" button** (just a fixed form); the whole block is isolated (marked "exclusive") so members' names / phones aren't grabbed by your own placeholders
+- **Safe-by-default** — skips password, captcha and search boxes
+- **Heuristic fallback** — when a site isn't specifically adapted, still recognizes fields by placeholder, label text, `name`, and `aria-label`
 
-**Testing**
+#### 2. Smart dropdown matching (leave blank rather than guess wrong)
+Your resume says "CET-6" but the page says "英语六级" (CET-6); your resume says "汉" (Han) but the page says "汉族" (Han). These used to fail.
+Worse are cases where the literal text matches but the meaning is opposite: when your resume says "本科" (bachelor's), `非全日制本科` (part-time bachelor's) **contains "本科" literally** and could have been selected. You wouldn't notice until the resume was already sent.
+
+Now all dropdowns, radio groups and region cascades go through one matcher (native / antd / Element / radio — four algorithms merged into one), scored by these tiers, and **anything below 55 is left blank**:
+
+| Judgment | Example |
+|---|---|
+| Exact match | `本科` = `本科` |
+| Synonym (lexicon) | `CET-6` → `英语六级`; `汉` → `汉族`; `共青团员` → `团员` |
+| Long/short form (lexicon) | `全日制` → `全国普通高等院校全日制`; `学士` → `学士学位` |
+| Parenthesized alias | `英语四级（CET-4）` → `CET-4` |
+| Same after stripping modifiers | `本科` → `本科及以上` |
+| Different place-name suffix | `北京` → `北京市` |
+| Same calendar day | `2005-05` → `2005年5月` |
+| Numeric / range hit | `175` → `170-175cm` |
+| Substring match (length ratio ≥ 0.6) | `本科` → `全日制本科` |
+| **Negation word, opposite meaning → 0** | **`本科` ✗ `非全日制本科`; `中共党员` ✗ `非党员`** |
+
+**Core rule: better blank than wrong.** HR skips an empty box; a wrong political status is a minus.
+The long/short-form tier deserves a note: when the page writes "全国普通高等院校全日制" (11 chars) but your resume stores "全日制" (3 chars), the literal length ratio is only **0.27**, below the 0.6 substring threshold — the algorithm can never reach it. These must be recognized as synonyms via the lexicon (`study_mode` in `content/lexicon.js`).
+
+When matching fails, the report shows you **every option the dropdown actually has**, so you can pick manually at a glance. If you really want to teach it, use **🎯 Click-to-adapt** once and it's recognized next time.
+
+To add a synonym, edit only `content/lexicon.js` (pure data — a synonym table for 14 high-frequency enum fields), then run `node test/matcher.js` to confirm nothing regressed.
+
+> `degree` and `degree_name` are two separate fields: `degree` answers "本科" (bachelor's), `degree_name` answers "学士" (Bachelor). The first option of a degree dropdown is often "无" (none), which scores 0 under the no-negation-word rule and is never mis-selected.
+
+#### 3. Floating ball · one-click undo · fill report
+A draggable floating ball appears at the bottom-right of form pages (isolated by Shadow DOM, so site styles can't break it):
+
+- Tap to expand the menu: **Fill current page / Undo last fill / Click-to-adapt / Log an application**
+- Drag to reposition; position is remembered
+- Only appears on "adapted sites" or pages with ≥3 fillable controls, so it won't float everywhere
+
+**Fill report**: a small card floats up after filling, telling you exactly what happened:
+
+- Top summary `Filled 12 · To fill manually 3`
+- Three groups: **what the extension didn't fill** (with reasons, e.g. "no '共青团员' in options"), **blank fields it couldn't recognize**, and **fields it knows but your resume left empty**
+- **Click any item and the page scrolls to and highlights that field** — no more hunting by eye
+- Auto-collapses after 15s; stays if you hover
+
+**One-click undo**: snapshots every control's original value before filling; undo restores each and clears the green highlights. Four entry points: floating-ball menu / "↩ Undo this fill" in the report / popup button / shortcut `Ctrl+Shift+Z`. Repeated undo clearly says "no fill record to undo" instead of failing silently.
+
+#### 4. Field memory + click-to-adapt
+For fields the extension can't recognize, teach it right on the page — **once is enough**.
+
+- **From the report**: each "unrecognized blank field" row has a "Remember" button → a field picker (with search) → select → the extension remembers immediately and **fills once with the new mapping on the spot**
+- **Active clicking (recommended for a new site)**: floating ball → "🎯 Click-to-adapt" → inputs outline blue on hover → click the field to record → pick the field → green outline means collected. The panel lets you "keep clicking / copy code / done"; `Esc` to exit
+
+**What you teach survives redesigns**: it stores both a "precise selector" and a "fingerprint" (tag + name / placeholder / label text). If the selector breaks, it falls back to the fingerprint; if the selector isn't unique on the page it **refuses to recognize rather than fill the wrong box**.
+
+**Hit priority: field memory > site adapter > heuristic recognition.** What you manually confirmed always beats machine guessing.
+
+After clicking you can "copy code" to generate an adapter snippet that drops straight into [`content/sites.js`](content/sites.js), turning that day's temporary teaching into a permanent adaptation.
+
+#### 5. Multiple resume profiles
+One resume for every job is wasteful. The popup top has a profile bar: dropdown to switch, `＋` new, `⧉` duplicate, `✎` rename, `🗑` delete.
+
+- One profile = **field data + experience blocks + attachments**, all three switch together
+- **Switching is manual** — it won't silently swap your resume just because you viewed a new posting today
+- Attachments are deduplicated by content; duplicating a profile stores one reference, so storage doesn't blow up
+- Upgrading from an old version wraps your existing resume into a "default profile" automatically — no data loss
+
+#### 6. Auto-inferred target position & city
+Job-board titles almost always carry the role (e.g. `字节跳动-后端开发工程师-校招`). Before filling, the extension reads the title to infer role and city; **the inferred value overrides what's hardcoded in your resume**, and the report calls it out separately ("position adjusted to XXX for this page"), so you always know when filled ≠ written.
+
+Inference is scored: split the title by delimiters, +10 for a role word, −12 for a company word, −20 for a site word, take the highest segment; any segment without a role word is dropped — **better blank than wrong**. A slash only counts as a delimiter when both sides have spaces, so "C/C++开发工程师" isn't split.
+
+Don't want this? Turn it off in the popup.
+
+#### 7. Automatic application ledger
+Turn applications into trackable data. One record holds: company, role, city, link, source site, status, note, time.
+
+**State machine**: `Applied → Exam → Interviewing → Offer / Rejected·No response`
+
+**Three ways to log:**
+
+1. **Auto-prompt after success** — 2.6s after submitting, the extension checks if the current page is an "application submitted" page and prompts to confirm. **Never logs automatically**: a wrong log is harder to clean up than a missed one
+2. **Floating-ball menu → "📝 Log an application"** — when you don't want to wait for detection
+3. **Popup → Ledger → "✎ Add manually"** — for applications submitted via the official site or referral
+
+**In the popup you can**: see how many you applied to today / this week and how many are still pending; filter by status, search by keyword (company / role / note); change status, edit notes, delete, clear; export CSV (with UTF-8 BOM so Excel opens it cleanly).
+
+The same role logged twice is de-duplicated by link and merged — no duplicate rows.
+
+#### 8. Misc
+- **Resume recognition**: paste full resume text or import `.txt` / `.docx` / `.pdf`; auto-detects name, phone, education, experience, etc. On import it sniffs the format by **file header** and the encoding by **BOM / UTF-16 signature / strict UTF-8 / GBK candidate scoring** — ANSI(GBK) txt exported by Chinese Windows no longer comes out garbled. When it can't extract reliable text (scanned PDF, legacy `.doc`, subset-font PDF) it **errors out explicitly rather than filling garbage**
+- **Custom fields**: for site-specific fields, add "field name + content" yourself and it matches automatically when filling
+- **Auto-upload resume attachment**: upload once in the popup; on fill it's dropped into the page's attachment box (via `DataTransfer`, falling back to dispatching a `drop` event if rejected)
+
+### Install
+
+1. Download or clone this repository
+2. Open the extensions page: Edge → `edge://extensions/`; Chrome → `chrome://extensions/`
+3. Enable **Developer mode** (top-right)
+4. Click **Load unpacked** and select this repository folder
+5. The 📋 icon appears in your toolbar — pin it for easy access
+
+**Update an existing install**: click 🔄 **Reload** on the card in the extensions page. After changing the manifest or adding a content script, a reload is required for changes to take effect.
+
+> Firefox users: the repo ships `manifest.firefox.json` and `build-firefox.ps1`. Run the script to generate `dist-firefox/`, then load it via `about:debugging` → This Firefox → Load Temporary Add-on.
+
+### Quick start
+
+**First time (about 5 minutes):**
+
+1. Click the 📋 icon to open the popup
+2. Expand **📥 Resume recognition**, paste your resume text or import a file → click **🔍 Recognize** → then **✓ Apply to resume data**
+   (you can also skip this and fill fields by hand; changes save automatically)
+3. Expand **📎 Resume attachment** and pick a resume PDF — it'll be uploaded automatically on fill
+4. Close the popup and open a job board's resume or application page
+
+**Every time you apply:**
+
+1. Floating ball → **⚡ Fill Current Page**, or press `Ctrl+Shift+F`, or right-click → "Fill this page with resume data"
+2. Check the report at the bottom-right: green = filled; click an item to jump to that field; click "Remember" on unrecognized fields to teach it
+3. Filled something wrong? Press `Ctrl+Shift+Z` to undo
+4. After submitting, the success page prompts a card → click "Log it"
+5. Periodically open the popup's **📝 Ledger** to review stats, update statuses, and export CSV when needed
+
+**Applying to multiple directions:**
+
+- In the popup profile bar, `＋` new "Mechanical", then `⧉` duplicate into "Hardware", edit fields and attachments each
+- Switch profiles from the dropdown before applying
+- On first encounter with a new site, use the floating ball's "🎯 Click-to-adapt" to teach the unrecognized fields once
+
+### UI walkthrough
+
+#### Popup
+The popup's total height is capped at 600px by the browser, so space goes to "resume editing" — only the few lines you need every time stay on top, and the five config panels collapse into a single "⚙️ More settings" row.
+
+| Block | Purpose |
+|---|---|
+| Top buttons | **⚡ Fill Current Page**, `↩` undo, `⧉` standalone window, `✕` close |
+| Site hint | The detected site, number of remembered mappings, inferred role. **Collapsed to one line by default**; click to expand, or hover to see all |
+| Resume profile | Dropdown + `＋` `⧉` `✎` `🗑`; a sub-line shows the current profile's field / experience / attachment counts, also expandable |
+| ⚙️ More settings | Collapsed area holding the 5 panels below (its own scroll limit so it never pushes the field area out) |
+| └ 📥 Resume recognition | Paste text or import txt / docx / pdf (auto-detects encoding & format), fills blank fields after recognition |
+| └ 📎 Resume attachment | Upload a resume file, auto-attached on fill (follows the profile) |
+| └ ⚙️ Fill options | 8 toggles + shortcut choice |
+| └ 🧠 Field memory | View remembered mappings per site; delete one / clear this site / clear all / copy this site's adapter code |
+| └ 📝 Ledger | Stats, filter, search, add, change status, export CSV, clear |
+| 🔍 Scan this page's fields | Lists every fillable field on the page (label / placeholder / control type / matched plugin field) — for diagnosing "why wasn't this box recognized" |
+| Resume editing | Grouped: basics / education / job intent / experience & intro; auto-saved |
+| Experience blocks | Education / internship / project / work / family; add/remove entries, edit field by field (for multi-row experience forms) |
+| Custom fields | Add site-specific "name + content" that matches automatically on fill |
+| Import / Export | Export JSON / Import JSON (all profiles) for backup or moving machines; plus restore defaults |
+
+#### Floating ball (bottom-right of form pages)
+Four menu items: **⚡ Fill Current Page**, **↩ Undo last fill**, **🎯 Click-to-adapt**, **📝 Log an application**. Can be turned off in **⚙️ Fill options**.
+
+#### Right-click menu
+- Fill this page with resume data
+- Undo last fill (restore original values)
+
+### Shortcuts & toggles
+
+| Action | Default shortcut |
+|---|---|
+| Fill current page | `Ctrl+Shift+F` |
+| Undo last fill | `Ctrl+Shift+Z` |
+| Exit picking mode | `Esc` |
+
+The fill key can be changed to `Alt+Shift+F` / `Alt+Q` / `Ctrl+Shift+U`, or turned off entirely (undo key is fixed).
+
+**The 8 toggles in ⚙️ Fill options:**
+
+| Toggle | Default | When to turn it off |
+|---|---|---|
+| Fill blank fields only (don't overwrite existing content) | On | When you want resume data to force-overwrite what's on the page |
+| Deep-fill component widgets | On | When a site's widgets misbehave and filling stalls — turn off to troubleshoot |
+| Auto-upload resume attachment | On | When you don't want to re-upload the attachment for every application |
+| Show floating ball on form pages | On | When the site's bottom-right button is obscured |
+| Auto-fill on entering an adapted site | Off | Turn on for full auto-fill (off by default to avoid misfires) |
+| Prefer field memory | On | When you want to compare pure heuristic recognition |
+| Auto-adjust expected position / city by current role | On | When your resume's expected position is carefully written and you don't want it overridden |
+| Prompt to log after success | On | When the prompt card feels noisy |
+
+### Supported sites
+
+**Job platforms (6)**
+BOSS直聘 · 智联招聘 · 前程无忧 · 拉勾 · 猎聘 · 实习僧
+
+**ATS systems (2)**
+Moka · 北森
+
+**Corporate campus recruiting (7)**
+牛客网校招 · 快手校招 · 字节跳动招聘 · 美团招聘 · 华为招聘 · 腾讯招聘 · 阿里巴巴招聘
+
+**Unlisted sites still work**: they fall back to heuristic matching (placeholder / label / `name` / `aria-label`). For inaccurately recognized fields, teach it once with "🎯 Click-to-adapt" — no need to wait for the author.
+
+### Data & privacy
+
+**All data lives only in your own browser** (`chrome.storage.local`). The extension collects and uploads nothing — no backend, no analytics.
+
+- `defaults.js` is a pure empty template with no personal information
+- The repo only ships `user-defaults.example.js` (empty template, safe to commit). Your real resume data lives in `user-defaults.js`, which is in `.gitignore` and never leaks your ID number, phone, or email through the open-source repo
+- The extension still runs fine without that file (degrades to the empty template); to pre-fill, copy `user-defaults.example.js` to `user-defaults.js` and fill in your info — **and don't commit it**
+- `build-firefox.ps1`'s exclude list also names `user-defaults.js`, so packaging never bundles your profile into the zip
+- The ledger, field memory, and profile data are likewise local only
+
+**Backup tip**: the popup's bottom "Export JSON" exports all profiles — import on a new machine or after a reinstall.
+
+### FAQ
+
+**Q: I clicked fill but a box didn't respond?**
+Check the group in the report. "Not filled by the extension" carries a reason (e.g. "no such value in options"); "unrecognized blank field" means the extension doesn't know the field — click "Remember" next to it to teach it once.
+
+**Q: Will it overwrite what I already filled?**
+Not by default — "fill blank fields only" is on. Turn it off to force-overwrite.
+
+**Q: How do I undo a mistake?**
+Press `Ctrl+Shift+Z`, or the floating-ball menu's "↩ Undo last fill". After a page reload the snapshot is gone and it'll tell you to refill (deliberate — safer than silently restoring a wrong state).
+
+**Q: Why wasn't a dropdown filled when the option is right there on the page?**
+Because the extension found no *safe* match. It prefers blank over guessing — a wrong political status or education is a minus, an empty box HR skips. The report lists the dropdown's actual options so you can pick manually at a glance. If it happens often, the word belongs in `content/lexicon.js`; run `node test/matcher.js` to confirm nothing else broke.
+
+**Q: Why wasn't `非全日制本科` selected even though it contains `本科`?**
+Deliberately blocked. `非全日制本科` and `全日制本科` overlap heavily in text but mean opposite things; the matcher scores such "core-same-after-stripping-negation" options as 0. Same for `非党员`, `没有`, etc. This rule has no toggle and isn't relaxed for sensitive fields.
+
+**Q: Why did the extension change my expected position?**
+That's feature §6, inferred from the job-page title, and flagged in the report. Don't want it? Turn off "Auto-adjust expected position / city by current role" in ⚙️ Fill options.
+
+**Q: The floating ball disappeared?**
+It only shows on adapted sites or pages with ≥3 fillable controls. Also check whether "Show floating ball on form pages" is off.
+
+**Q: Is my resume data still there after an upgrade?**
+Yes. Upgrade wraps your existing data into a "default profile" automatically — nothing lost or changed.
+
+**Q: No prompt card on the success page?**
+Success-page detection is heuristic and may miss unseen wording. Use the floating ball's "📝 Log an application" as a fallback.
+
+**Q: How many ledger entries can it hold?**
+Up to 500; oldest are dropped beyond that. Export CSV periodically for the record.
+
+### Development & testing
+
+No build step — edit source and click "Reload" in the extensions page.
+
+**Static checks & pure-logic unit tests (seconds):**
 
 ```bash
-node test/check.js                 # static references, wiring, injection order
-node test/logic.js                 # pure-function unit tests
-node test/run-page.js v5-step5.html # run a full test page headlessly
-node test/run-popup.js             # measure actual popup layout (injects a chrome stub)
-node test/serve.js                 # or serve them for a visual result
+node test/check.js    # reference integrity, id existence, toggle wiring, injection order, manifest consistency
+node test/logic.js    # region split, date parsing, field normalization, widget-type judgment, matcher, block migration (46 cases)
 ```
 
-312 page assertions + 26 popup-layout checks + 91 matcher cases + 46 unit tests currently pass. Note: `| head` / `| tail` pipes on `test/run-page.js` swallow output (SIGPIPE) — redirect to a file instead.
-When asserting overlay visibility, check `getComputedStyle` (what the user actually sees) rather than the `hidden` property.
-When touching popup CSS, remember `body` is a 600px-capped flex column: every extra pixel above the field list is a pixel taken from it, and overflowing flex items get squeezed proportionally.
-**License** — [MIT](LICENSE)
+**Run a full test page (really runs in a headless browser):**
+
+```bash
+node test/run-page.js v5-step5.html
+```
+
+**Run popup-layout verification (measures how much height the field area actually got):**
+
+```bash
+node test/run-popup.js          # opens popup.html as a normal page, injects a chrome stub, measures real block sizes
+node test/run-popup.js --shot   # also saves two render screenshots (collapsed / expanded) for eyeballing
+```
+
+**Or serve locally and view visual results in a browser:**
+
+```bash
+node test/serve.js
+# step 1  http://localhost:8791/test/v2-step1.html
+# step 2  http://localhost:8791/test/v2-step2.html
+# step 3  http://localhost:8791/test/v3-step3.html
+# step 4  http://localhost:8791/test/v4-step4.html
+# step 5  http://localhost:8791/test/v5-step5.html
+# show/hide regression  http://localhost:8791/test/v6-hud-visible.html
+# dropdown matching E2E  http://localhost:8791/test/v7-match.html
+# degree / study-mode E2E  http://localhost:8791/test/v8-degree-mode.html
+# import encoding & garbage  http://localhost:8791/test/v9-file-import.html
+# family / emergency contact  http://localhost:8791/test/v10-family.html
+```
+
+**Test coverage:**
+
+| Test | Assertions | Covers |
+|---|---|---|
+| `test/v2-step1.html` | 11 | non-native dropdown, date, region cascade, experience-block row add, attachment upload, anti-misfill |
+| `test/v2-step2.html` | 26 | blank-only fill, report counting, item-click highlight, 4 undo entries, shortcuts |
+| `test/v3-step3.html` | 43 | selector generation, fingerprint fallback, memory priority & fallback, report "remember", full click flow |
+| `test/v4-step4.html` | 53 | profile migration, mirror sync, attachment dedup, add/edit/delete/duplicate, import/export, 19 inference cases |
+| `test/v5-step5.html` | 50 | ledger storage & dedup, status flow, statistics, CSV escaping, success-page judgment, confirm card |
+| `test/v6-hud-visible.html` | 41 | all 7 overlays' show/hide: initial hidden, close button, modal mutual-exclusion, report option rows |
+| `test/v7-match.html` | 22 | dropdown matching E2E: synonyms, negation red line, blank-on-miss, report lists options, undo, **labels written as "英语水平/英语能力/语言能力" still recognized and select the "四级" short option** |
+| `test/v8-degree-mode.html` | 14 | degree & study-mode E2E: long-form options, degree/study-mode don't bleed, never select "无", undo |
+| `test/v9-file-import.html` | 24 | file import: GBK / UTF-8 / UTF-16 detection, magic-number format, legacy .doc & binary rejection, docx (compressed/raw), PDF (literal / hex / FlateDecode / subset-font), newline preservation, two-layer check |
+| `test/v10-family.html` | 28 | family E2E: locatable with no "Add" button, member name/phone not grabbed by yours, emergency contact, anti-interference when an "Add" prompt string exists on the page, prefers blank when the block has no data |
+| `test/matcher.js` | 91 | option-matching case set (100% correct, 0 wrong selections) |
+| `test/logic.js` | 46 | pure-function unit tests (region split, date parse, control judgment, matcher, block migration) |
+| `test/run-popup.js` | 26 | popup layout: 5 panels inside the collapsed area, field area ≥ 350px and over half the popup, two hints single-line collapsed + click-to-expand, field area yields but doesn't overflow when settings expand |
+
+Total **312 page assertions + 26 popup-layout checks + 91 matcher cases + 46 pure-function unit tests** (plus the `test/check.js` static check) — all passing currently.
+
+Run matcher cases alone (fastest, no browser):
+
+```bash
+node test/matcher.js        # 91 "resume value × page option set" cases, including negation adversarial cases
+node test/logic.js          # pure-function unit tests
+node test/check.js          # static check: load order, wiring, [hidden] fallback
+```
+
+**Four known test-environment caveats:**
+
+1. Pipes like `node test/run-page.js ... | head` swallow output via SIGPIPE (the process actually finished). Redirect to a file instead: `node test/run-page.js v7-match.html > out.log 2>&1`
+2. The popup isn't a tab, so `run-page.js` can't run it — use `node test/run-popup.js`. It injects a `chrome` stub via `addInitScript`, so no stub-uncovered API may appear on that path; when adding a `chrome.*` call, also add it to the stub in `test/run-popup.js`.
+3. To automate loading the extension against real sites, use **Chrome for Testing** (or Chromium): the `--load-extension` ban applies only to Google-branded Chrome; these two work. The test pages are plain web pages (mocking `chrome` APIs) verifying **logic**; the extension's behavior on real sites still needs manual testing.
+4. Headless Chrome occasionally hangs and won't exit — the log already has the result but the process is stuck. `run-page.js` has two layers of self-protection, so normally **don't add `timeout` manually**:
+   - a forced-exit timer is armed 8s after results are read (note it must be armed *after* reading results and *before* any diagnostic read — at the function's end it's as good as nothing, since a hang never reaches it);
+   - a global 75s watchdog covering "launch browser → open page → wait for tests", exiting with **code 2** to distinguish from "assertion failed (1)": `exit=2` means headless Chrome hung, not your code — just rerun.
+   On a real machine a single page takes ~11s; previously running all 10 pages consecutively got 6 killed by the outer `timeout`, yielding fake `exit=124` "all passed but not 0" failures. If still hung, `Stop-Process -Name chrome -Force` to clear.
+
+> **When writing tests**: assert overlay show/hide with `vis(el)` (the actual rendered result from `getComputedStyle`), **not just the `el.hidden` attribute** — when a panel's style declares `display`, `hidden` is silently overridden and checking the attribute gives a false pass. The relevant assertions in `v2-step2` / `v3-step3` / `v5-step5` were already fixed to this principle.
+
+> **When touching popup CSS**: `body` is a flex column capped at 600px, so every extra pixel above the field list is a pixel taken from it, and on overflow the browser **squeezes the upper flex items proportionally** (two collapsed hints were once squeezed to a 1px line, invisible via the `hidden` attribute). Add `flex: 0 0 auto` to new blocks, and re-run `node test/run-popup.js` to verify.
+
+### Adding a site adapter
+
+Append one entry to `JIANLI_SITE_ADAPTERS` in [`content/sites.js`](content/sites.js):
+
+```js
+{
+  id: "mokahr",
+  name: "Moka 招聘系统",
+  hosts: ["mokahr.com", "app.mokahr.com"],
+  fields: {
+    name: ['input[name="candidateName"]'],
+    position: ['#expectPosition'],
+    school: ["input.school", "#eduSchool"],
+  },
+}
+```
+
+Faster: use the floating ball's "🎯 Click-to-adapt", click through, then "Copy code" and paste it in.
+
+Issues reporting adaptation breakage from site redesigns are welcome — a site domain plus the un-fillable field name is the most useful.
+
+### Project structure
+
+```
+.
+├── manifest.json              # Chrome / Edge MV3 manifest
+├── manifest.firefox.json      # Firefox manifest
+├── build-firefox.ps1          # script to package the Firefox build
+├── background.js              # Service Worker: context menu, message routing, auto-fill scheduling
+├── defaults.js                # default settings & empty template (no personal info)
+├── user-defaults.example.js   # resume data template (safe to commit)
+├── user-defaults.js           # your real resume data (optional; copy from example and fill in; gitignored)
+├── profiles.js                # multi-profile storage layer
+├── content/                   # content scripts, injected in this order (order matters)
+│   ├── lexicon.js             #   option synonym table (pure data; edit here to add words)
+│   ├── matcher.js             #   unified option matcher (normalize + score + threshold, pure functions)
+│   ├── sites.js               #   site adapters, field groups, recognition rules
+│   ├── widgets.js             #   component-widget adaptation: dropdown / date / cascade
+│   ├── blocks.js              #   repeatable experience-block row add, attachment upload
+│   ├── memory.js              #   field-mapping memory (selector + fingerprint)
+│   ├── infer.js               #   role / city / company inference
+│   ├── ledger.js              #   application ledger storage & success-page detection
+│   ├── hud.js                 #   floating ball, report overlay, click panel, confirm card
+│   └── content.js             #   main: fill engine, message handling, entry orchestration
+├── popup/                     # popup UI (html / css / js)
+├── icons/                     # icons
+├── test/                      # test tooling and test pages
+└── 更新日志.md / 优化报告.html  # changelog
+```
+
+> ⚠️ The `content_scripts` injection order **must** be `lexicon → matcher → sites → widgets → blocks → memory → infer → ledger → hud → content`.
+> Later modules depend on the `window` globals from earlier ones. `test/check.js` enforces this order, checks `background.js`'s injection list against the manifest, and verifies all four matcher call sites are wired to `matcher.js`.
+
+### License
+
+[MIT](LICENSE)
